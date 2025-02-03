@@ -1,0 +1,47 @@
+{
+  "name": "lii-manager",
+  "private": true,
+  "version": "0.0.0",
+  "homepage": "https://Ekaterina0801.github.io/quizManagerApp",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "predeploy": "npm run build",
+   "deploy": "gh-pages -d dist"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@headlessui/react": "^2.2.0",
+    "@heroicons/react": "^2.2.0",
+    "@mui/material": "^6.4.2",
+    "@tailwindcss/postcss": "^4.0.1",
+    "axios": "^1.7.9",
+    "date-fns": "^4.1.0",
+    "mobx": "^6.13.6",
+    "mobx-react-lite": "^4.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^7.1.4",
+    "shadcn-ui": "^0.9.4",
+    "tailwindcss": "^4.0.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@tailwindcss/vite": "^4.0.1",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "eslint": "^9.17.0",
+    "eslint-plugin-react": "^7.37.2",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "eslint-plugin-react-refresh": "^0.4.16",
+    "gh-pages": "^6.3.0",
+    "globals": "^15.14.0",
+    "telegram-webapps": "^8.0.4",
+    "vite": "^6.0.5"
+  }
+}
