@@ -4,6 +4,13 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import routes from '../routes';
 import './App.css'
 function App() {
+  useEffect(() => {
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+      tg.expand(); 
+      tg.enableClosingConfirmation(); 
+    }
+  }, []);
   return (
       <div className="App">
         <Router basename="/quizManager">
