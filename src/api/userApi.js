@@ -39,6 +39,7 @@ const UserAPI = {
 
   // Добавить пользователя в команду
   addUserToTeam: async (telegramId, teamId, role) => {
+    console.log(telegramId, teamId, role);
     try {
       const response = await axios.post(`${API_BASE_URL}/addUserToTeam`, null, {
         params: { telegramId, teamId, role },

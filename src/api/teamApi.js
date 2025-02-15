@@ -50,8 +50,19 @@ const TeamAPI = {
     }
   },
 
+  getEventsByTeamId: async (teamId) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/${teamId}/events`);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching team events:", error);
+      throw error;
+    }
+  },
+
   // Добавить пользователя в команду
   addUserToTeam: async (teamId, userId, role) => {
+    console.log(teamId,userId, role);
     try {
       const response = await axios.post(`${API_BASE_URL}/${teamId}/addUser`, null, {
         params: { userId, role },

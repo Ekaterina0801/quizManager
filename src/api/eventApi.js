@@ -13,15 +13,6 @@ const EventAPI = {
     }
   },
 
-  getEventsByTeamId: async (teamId) => {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/${teamId}`);
-      return response.data;
-    } catch (error) {
-      console.error("Error fetching team events:", error);
-      throw error;
-    }
-  },
 
   getEventById: async (eventId) => {
     try {
@@ -33,35 +24,37 @@ const EventAPI = {
     }
   },
 
-  createEvent: async (eventData, imageFile, userId, teamId) => {
+  createEvent: async (formData) => {
     try {
-      const formData = new FormData();
-      formData.append("eventData", JSON.stringify(eventData));
-      if (imageFile) formData.append("imageFile", imageFile);
-      formData.append("userId", userId);
-      formData.append("teamId", teamId);
-      
-      const response = await axios.post(`${API_BASE_URL}`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+      const response = await fetch(API_BASE_URL, {
+        method: "POST",
+        body: formData,
       });
-      return response.data;
+
+      if (!response.ok) {
+        throw new Error(`Ошибка при создании события: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log("Ответ от сервера:", data);
+
+
+      return data;
     } catch (error) {
-      console.error("Error creating event:", error);
-      throw error;
+      console.error("Ошибка создания события:", error);
+      throw error; 
     }
   },
 
-  updateEvent: async (eventId, eventData, imageFile, userId) => {
+  
+
+  updateEvent: async (eventId, eventData) => {
+    console.log('ed',eventData);
     try {
-      const formData = new FormData();
-      formData.append("eventData", JSON.stringify(eventData));
-      if (imageFile) formData.append("imageFile", imageFile);
-      formData.append("userId", userId);
-      
-      const response = await axios.put(`${API_BASE_URL}/${eventId}`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      return response.data;
+        await fetch(API_BASE_URL+`/${eventId}`, {
+            method: "PUT",
+            body: eventData,
+          });
     } catch (error) {
       console.error("Error updating event:", error);
       throw error;

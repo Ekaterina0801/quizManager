@@ -1,1 +1,50 @@
 @import "tailwindcss";
+body {
+    font-family: 'Rubik', sans-serif;
+    background-color: #f9f9f9;
+  }
+
+  .bg-purple-custom {
+    background: #732D87;
+    border-radius: 20px;
+    background: linear-gradient(145deg, #732d87, #5a1f6e); /* Мягкий градиент для фона */
+    box-shadow: 8px 8px 16px rgba(0, 0, 0, 0.2), 
+                -8px -8px 16px rgba(255, 255, 255, 0.15); /* Тени для глубины */
+  }
+  
+  .shadow-neomorph {
+    box-shadow: 8px 8px 16px rgba(0, 0, 0, 0.2), 
+                -8px -8px 16px rgba(255, 255, 255, 0.25); /* Мягкие тени */
+  }
+  
+  .shadow-neomorph-hover {
+    box-shadow: 12px 12px 24px rgba(0, 0, 0, 0.3), 
+                -12px -12px 24px rgba(255, 255, 255, 0.3); /* Усиленная тень при наведении */
+  }
+  
+  .shadow-button {
+    box-shadow: 4px 4px 8px rgba(0, 0, 0, 0.2), 
+                -4px -4px 8px rgba(255, 255, 255, 0.2); /* Мягкие тени для кнопки */
+  }
+  
+  .active:shadow-none {
+    box-shadow: none;
+  }
+  
+  /* Внешний контур для контейнера карточек */
+  .shadow-neomorph-container {
+    box-shadow: 12px 12px 30px rgba(0, 0, 0, 0.2), 
+                -12px -12px 30px rgba(255, 255, 255, 0.15); /* Для всей области с карточками */
+  }
+  
+
+  /* Неоморфные тени */
+.shadow-neo {
+    box-shadow: 9px 9px 16px rgba(163, 177, 198, 0.6),
+                -9px -9px 16px rgba(255, 255, 255, 0.5);
+  }
+  
+  .shadow-neo-inner {
+    box-shadow: inset 3px 3px 7px rgba(163, 177, 198, 0.6),
+                inset -3px -3px 7px rgba(255, 255, 255, 0.5);
+  }
