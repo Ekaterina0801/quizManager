@@ -1,142 +1,252 @@
-import React, { useEffect } from "react";
+import { useState, useEffect } from "react";
 import moment from "moment";
-const EditEventModal = ({
-    isModalOpen,
-    handleModalClose,
-    handleInputChange,
-    handleFormSubmit,
-    event,
-    handleFileChange,
-  }) => {
-    useEffect(() => {
-      if (isModalOpen) {
-        document.body.style.overflow = "hidden";
-      } else {
-        document.body.style.overflow = "auto";
-      }
-  
-      return () => {
-        document.body.style.overflow = "auto";
-      };
-    }, [isModalOpen]);
-  
-    if (!isModalOpen) return null;
-  
-    return (
-      <div className="fixed inset-0 flex items-center justify-center bg-[rgba(255,255,255,0.8)] bg-opacity-50 z-50">
-        <div className="bg-white p-6 rounded-lg shadow-lg w-96 max-h-[80vh] overflow-auto border border-[#732D87]">
-          <h3 className="text-xl font-semibold mb-4 text-[#732D87] border-b-2 pb-2 border-[#732D87]">Редактировать событие</h3>
-          <form onSubmit={handleFormSubmit}>
-            <label className="block mb-2 text-sm font-medium text-gray-700">Название мероприятия</label>
+import userStore from "../store/userStore";
+export default function EditEventModal({
+  isOpen,
+  event,
+  onClose,
+  onSubmit, // ожидает FormData
+}) {
+  const [formData, setFormData] = useState({
+    name: "",
+    date: "",
+    time: "",
+    location: "",
+    description: "",
+    linkToAlbum: "",
+    teamResult: "",
+    price: "",
+    isRegistrationOpen: true,
+    isHidden: false,
+  });
+  const [file, setFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState("");
+
+  useEffect(() => {
+    if (isOpen && event) {
+      const dt = moment(event.dateTime);
+      setFormData({
+        name: event.name || "",
+        date: dt.format("YYYY-MM-DD"),
+        time: dt.format("HH:mm"),
+        price: event.price || "",
+        location: event.location || "",
+        description: event.description || "",
+        linkToAlbum: event.linkToAlbum || "",
+        teamResult: event.teamResult || "",
+        isRegistrationOpen: event.isRegistrationOpen,
+        isHidden: event.isHidden ?? false,
+      });
+      setFile(null);
+      setPreviewUrl(event.posterUrl || "");
+      document.body.style.overflow = "hidden";
+    }
+    return () => {
+      document.body.style.overflow = "auto";
+    };
+  }, [isOpen, event]);
+
+  if (!isOpen) return null;
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+  };
+
+  const handleFileChange = (e) => {
+    const f = e.target.files[0] || null;
+    setFile(f);
+    if (f) setPreviewUrl(URL.createObjectURL(f));
+  };
+
+  const handleSave = async () => {
+    const fd = new FormData();
+    fd.append("name", formData.name);
+    fd.append("dateTime", `${formData.date}T${formData.time}:00`);
+    fd.append("location", formData.location);
+    if (formData.price) fd.append("price", formData.price);
+    if (formData.description) fd.append("description", formData.description);
+    if (formData.linkToAlbum) fd.append("linkToAlbum", formData.linkToAlbum);
+    if (formData.teamResult) fd.append("teamResult", formData.teamResult);
+    fd.append("teamId", String(event.teamId));
+    fd.append("userId", String(userStore.me.id));
+    fd.append("isRegistrationOpen", String(formData.isRegistrationOpen));
+    fd.append("isHidden", String(formData.isHidden));
+    if (file) fd.append("imageFile", file);
+
+    await onSubmit(fd);
+    onClose();
+  };
+
+  return (
+    // фон, затемняющий всё окно
+    <div className="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-purple-900 via-purple-700 to-pink-600 bg-opacity-80 z-50 p-4">
+      {/* полупрозрачный узор на фоне */}
+      <div className="absolute inset-0 bg-[url('/assets/trophy-flames.svg')] opacity-10" />
+
+      {/* вот здесь добавили max-h-[90vh] и overflow-y-auto */}
+      <div className="relative bg-gradient-to-tr from-purple-800 to-purple-600 rounded-3xl shadow-2xl w-full max-w-lg 
+                      max-h-[90vh] overflow-y-auto p-8">
+        <h3 className="text-2xl font-extrabold text-white mb-6 text-center">
+          Редактировать событие
+        </h3>
+
+        <form className="space-y-5">
+          {/* Название */}
+          <label className="block text-white">
+            Название
             <input
-              type="text"
               name="name"
-              value={event.name}
-              onChange={handleInputChange}
-              className="w-full p-2 border rounded-md mb-4 border-[#732D87] focus:outline-none focus:ring-2 focus:ring-[#732D87] focus:border-transparent"
-              required
+              value={formData.name}
+              onChange={handleChange}
+              className="mt-1 w-full px-4 py-2 rounded-lg bg-purple-900 text-white focus:ring-yellow-300"
             />
-  
-            <label className="block mb-2 text-sm font-medium text-gray-700">Дата</label>
+          </label>
+
+          {/* Дата и время */}
+          <div className="flex space-x-4">
+            <label className="flex-1 text-white">
+              Дата
+              <input
+                type="date"
+                name="date"
+                value={formData.date}
+                onChange={handleChange}
+                className="mt-1 w-full px-4 py-2 rounded-lg bg-purple-900 text-white focus:ring-yellow-300"
+              />
+            </label>
+            <label className="flex-1 text-white">
+              Время
+              <input
+                type="time"
+                name="time"
+                value={formData.time}
+                onChange={handleChange}
+                className="mt-1 w-full px-4 py-2 rounded-lg bg-purple-900 text-white focus:ring-yellow-300"
+              />
+            </label>
+          </div>
+
+          {/* Локация */}
+          <label className="block text-white">
+            Место
             <input
-              type="date"
-              name="date"
-              value={moment(event.dateTime).format("YYYY-MM-DD")}
-              onChange={handleInputChange}
-              className="w-full p-2 border rounded-md mb-4 border-[#732D87] focus:outline-none focus:ring-2 focus:ring-[#732D87] focus:border-transparent"
-              required
-            />
-  
-            <label className="block mb-2 text-sm font-medium text-gray-700">Время</label>
-            <input
-              type="time"
-              name="time"
-              value={moment(event.dateTime).format("HH:mm")}
-              onChange={handleInputChange}
-              className="w-full p-2 border rounded-md mb-4 border-[#732D87] focus:outline-none focus:ring-2 focus:ring-[#732D87] focus:border-transparent"
-              required
-            />
-  
-            <label className="block mb-2 text-sm font-medium text-gray-700">Место</label>
-            <input
-              type="text"
               name="location"
-              value={event.location}
-              onChange={handleInputChange}
-              className="w-full p-2 border rounded-md mb-4 border-[#732D87] focus:outline-none focus:ring-2 focus:ring-[#732D87] focus:border-transparent"
-              required
+              value={formData.location}
+              onChange={handleChange}
+              className="mt-1 w-full px-4 py-2 rounded-lg bg-purple-900 text-white focus:ring-yellow-300"
             />
-  
-            <label className="block mb-2 text-sm font-medium text-gray-700">Описание</label>
+          </label>
+
+          {/* Описание */}
+          <label className="block text-white">
+            Описание
             <textarea
               name="description"
-              value={event.description}
-              onChange={handleInputChange}
-              className="w-full p-2 border rounded-md mb-4 border-[#732D87] focus:outline-none focus:ring-2 focus:ring-[#732D87] focus:border-transparent"
-              required
-            ></textarea>
-  
-            {/* Поле для ввода ссылки на альбом */}
-            <label className="block mb-2 text-sm font-medium text-gray-700">Ссылка на альбом</label>
+              rows={3}
+              value={formData.description}
+              onChange={handleChange}
+              className="mt-1 w-full px-4 py-2 rounded-lg bg-purple-900 text-white focus:ring-yellow-300"
+            />
+          </label>
+          <label className="block text-white">
+            Стоимость
+            <textarea
+              name="price"
+              rows={1}
+              value={formData.price}
+              onChange={handleChange}
+              className="mt-1 w-full px-4 py-2 rounded-lg bg-purple-900 text-white focus:ring-yellow-300"
+            />
+          </label>
+
+          {/* Ссылка на альбом */}
+          <label className="block text-white">
+            Ссылка на альбом
             <input
               type="url"
               name="linkToAlbum"
-              value={event.linkToAlbum}
-              onChange={handleInputChange}
-              className="w-full p-2 border rounded-md mb-4 border-[#732D87] focus:outline-none focus:ring-2 focus:ring-[#732D87] focus:border-transparent"
+              value={formData.linkToAlbum}
+              onChange={handleChange}
+              className="mt-1 w-full px-4 py-2 rounded-lg bg-purple-900 text-white focus:ring-yellow-300"
             />
-  
-            {/* Поле для ввода результата команды */}
-            <label className="block mb-2 text-sm font-medium text-gray-700">Результат команды</label>
+          </label>
+
+          {/* Результат команды */}
+          <label className="block text-white">
+            Результат команды
             <input
-              type="text"
               name="teamResult"
-              value={event.teamResult}
-              onChange={handleInputChange}
-              className="w-full p-2 border rounded-md mb-4 border-[#732D87] focus:outline-none focus:ring-2 focus:ring-[#732D87] focus:border-transparent"
+              value={formData.teamResult}
+              onChange={handleChange}
+              className="mt-1 w-full px-4 py-2 rounded-lg bg-purple-900 text-white focus:ring-yellow-300"
             />
-  
-            {/* Поле для загрузки изображения афиши */}
-            <label className="block mb-2 text-sm font-medium text-gray-700">Афиша мероприятия</label>
+          </label>
+
+          {/* Переключатели */}
+          <div className="flex space-x-6 text-white">
+            <label className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                name="isRegistrationOpen"
+                checked={formData.isRegistrationOpen}
+                onChange={handleChange}
+                className="h-5 w-5 rounded bg-purple-900 text-yellow-300 focus:ring-yellow-300"
+              />
+              <span>Регистрация открыта</span>
+            </label>
+            <label className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                name="isHidden"
+                checked={formData.isHidden}
+                onChange={handleChange}
+                className="h-5 w-5 rounded bg-purple-900 text-yellow-300 focus:ring-yellow-300"
+              />
+              <span>Скрыть событие</span>
+            </label>
+          </div>
+
+          {/* Афиша */}
+          <label className="block text-white">
+            Афиша (изображение)
             <input
               type="file"
-              name="poster"
-              onChange={handleFileChange}
               accept="image/*"
-              className="w-full p-2 border rounded-md mb-4 border-[#732D87] focus:outline-none focus:ring-2 focus:ring-[#732D87] focus:border-transparent"
+              onChange={handleFileChange}
+              className="mt-1 text-white"
             />
-  
-            {/* Предварительный просмотр загруженного изображения */}
-            {event.posterUrl && (
-              <div className="mt-2 text-center">
-                <img
-                  src={event.posterUrl}
-                  alt="Poster Preview"
-                  className="max-w-full h-auto rounded-md"
-                />
-              </div>
-            )}
-  
-            <div className="flex justify-between mt-4">
-              <button
-                type="button"
-                onClick={handleModalClose}
-                className="text-[#732D87] hover:text-[#5a1e67] transition-colors duration-300"
-              >
-                Отменить
-              </button>
-              <button
-                type="submit"
-                className="py-2 px-4 bg-[#732D87] text-white rounded-md hover:bg-[#5a1e67] transition-colors duration-300"
-              >
-                Сохранить
-              </button>
-            </div>
-          </form>
-        </div>
+          </label>
+          {previewUrl && (
+            <img
+              src={previewUrl}
+              alt="Preview"
+              className="mt-2 w-full h-auto rounded-lg shadow-inner"
+            />
+          )}
+
+          {/* Кнопки */}
+          <div className="flex justify-end space-x-4 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-6 py-2 bg-gray-400 text-gray-800 rounded-lg hover:opacity-90 transition"
+            >
+              Отмена
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              className="px-6 py-2 bg-yellow-400 text-purple-900 font-bold rounded-lg hover:opacity-90 transition"
+            >
+              Сохранить
+            </button>
+          </div>
+        </form>
       </div>
-    );
-  };
-  
-  export default EditEventModal;
-  
+    </div>
+  );
+}

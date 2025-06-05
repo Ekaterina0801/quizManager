@@ -6,133 +6,268 @@ import Switch from "react-switch";
 import { useNavigate } from "react-router-dom";
 import TopBar from "../TopBar";
 import teamStore from "../../store/teamStore";
+import { useCallback } from "react";
+import { ClipboardIcon } from "lucide-react";
+import EditTeamModal from "../EditTeamModal";
+import userStore from "../../store/userStore";
 const NotificationSettingsPage = observer(() => {
-    const { selectedTeamId } = teamStore;
-    const [settings, setSettings] = useState({
-      registrationNotificationEnabled: true,
-      unregisterNotificationEnabled: true,
-      eventReminderEnabled: true,
-      registrationReminderHoursBeforeEvent: 24,
-    });
-    const [isLoading, setIsLoading] = useState(false);
-  
-    useEffect(() => {
-      const fetchSettings = async () => {
-        if (!selectedTeamId) return;
-        setIsLoading(true);
-        try {
-          await notificationStore.fetchNotificationSettings(selectedTeamId);
-          const storedSettings = notificationStore.notifications[selectedTeamId];
-          if (storedSettings) {
-            setSettings(storedSettings);
-          }
-        } catch (error) {
-          console.error("Ошибка при загрузке настроек:", error);
-        } finally {
-          setIsLoading(false);
-        }
-      };
-  
-      fetchSettings();
-    }, [selectedTeamId]);
-  
-    const handleChange = (name, value) => {
-      setSettings((prevSettings) => ({
-        ...prevSettings,
-        [name]: value,
-      }));
-    };
-  
-    const handleSave = async () => {
-      if (!selectedTeamId) return;
-      setIsLoading(true);
-      try {
-        await notificationStore.updateNotificationSettings(selectedTeamId, settings);
-        alert("Настройки успешно сохранены!");
-      } catch (error) {
-        console.error("Ошибка при сохранении настроек:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-  
-    if (isLoading) {
-        return (
-            <div className="fixed top-0 left-0 right-0 bottom-0 bg-[#e4effc] flex items-center justify-center z-50">
-            <div className="animate-spin rounded-full border-t-4 border-b-4 border-[#732D87] w-16 h-16">
+  const teamId     = teamStore.selected?.id
+  const inviteCode = teamStore.selected?.inviteCode || ""
 
+  // для открытия модалки редактирования
+  const [isEditTeamOpen, setIsEditTeamOpen] = useState(false)
+
+  // локальные стейты для формы редактирования
+  const [teamName, setTeamName] = useState(teamStore.selected?.name || "")
+  const [chatId, setChatId]     = useState(teamStore.selected?.chatId || "")
+
+  // настройки уведомлений
+  const [cfg, setCfg]       = useState({
+    registrationNotificationEnabled: true,
+    unregisterNotificationEnabled:   true,
+    eventReminderEnabled:            true,
+    registrationReminderHoursBeforeEvent: 24,
+  })
+  const [members, setMembers] = useState([])
+  const [toast, setToast]     = useState("")
+
+  // обновляем список участников
+  const updateMembersFromStore = useCallback(() => {
+    const memberships = teamStore.selected?.teamMemberships || []
+    setMembers(
+      memberships.map(m => ({
+        id:       m.user.id,
+        fullName: m.user.fullName,
+        role:     m.role,
+      }))
+    )
+  }, [teamStore.selected])
+
+  useEffect(() => {
+    if (!teamId) return
+
+    notificationStore.load(teamId).then(stored => {
+      if (stored) setCfg(stored)
+    })
+
+    updateMembersFromStore()
+
+    // синхронизируем поля формы редактирования
+    setTeamName(teamStore.selected?.name || "")
+    setChatId(teamStore.selected?.chatId || "")
+  }, [teamId, updateMembersFromStore])
+
+  const showToast = msg => {
+    setToast(msg)
+    setTimeout(() => setToast(""), 3000)
+  }
+
+  // единый метод сохранения name/chatId
+  const saveTeamUpdate = async (newName, newChatId) => {
+    if (!teamId) return
+    await teamStore.updateTeam({ teamId, newName, newChatId: newChatId, userId: userStore.me?.id })
+    setIsEditTeamOpen(false)
+    showToast("Данные команды обновлены")
+  }
+
+  const copyInviteCode = () => {
+    navigator.clipboard.writeText(inviteCode)
+    showToast("Код приглашения скопирован")
+  }
+
+  const saveSettings = async () => {
+    await notificationStore.save(cfg)
+    showToast("Настройки сохранены")
+  }
+
+  const toggleModerator = async user => {
+    const newRole = user.role === "MODERATOR" ? "USER" : "MODERATOR"
+    await teamStore.updateUserRole({ teamId, userId: user.id, role: newRole })
+    updateMembersFromStore()
+    showToast(
+      newRole === "MODERATOR"
+        ? `${user.fullName} теперь модератор`
+        : `Модераторство у ${user.fullName} снято`
+    )
+  }
+
+  const removeUser = async user => {
+    if (!window.confirm(`Удалить ${user.fullName} из команды?`)) return
+    await teamStore.removeUserFromTeam({ teamId, userId: user.id })
+    updateMembersFromStore()
+    showToast(`${user.fullName} удалён из команды`)
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-100">
+      <TopBar title="Настройки" showBackButton showSettingsIcon={false} />
+
+      <main className="max-w-4xl mx-auto p-6 space-y-8">
+        {/* Отображаем текущее имя команды */}
+        <section className="bg-white rounded-2xl shadow-lg p-6">
+          <h2 className="text-2xl font-semibold text-gray-800">
+            {teamStore.selected?.name}
+          </h2>
+        </section>
+
+        {/* Кнопка «Редактировать команду» */}
+        <section className="flex justify-end">
+          <button
+            onClick={() => setIsEditTeamOpen(true)}
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+          >
+            Редактировать команду
+          </button>
+        </section>
+
+        {/* Модалка редактирования команды (с прозрачным фоном) */}
+        <EditTeamModal
+          isOpen={isEditTeamOpen}
+          onClose={() => setIsEditTeamOpen(false)}
+          team={{
+            id:     teamId,
+            name:   teamName,
+            chatId: chatId,
+            userId: userStore.me?.id,
+          }}
+          onSave={(newName, newChatId, userId) => saveTeamUpdate(newName, newChatId, userId)}
+        />
+
+        {/* Код приглашения */}
+        {inviteCode && (
+          <section className="bg-white rounded-2xl shadow-lg p-6 flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-800">
+                Код приглашения
+              </h2>
+              <p className="mt-1 text-gray-600">{inviteCode}</p>
             </div>
-        </div>
-        );
-      }
-      
-  
-    return (
-      <div className="min-h-screen flex flex-col bg-[#e4effc]">
-        <TopBar title="Настройки" showBackButton={true} showSettingsIcon={false} />
-  
-        <div className="w-full max-w-6xl mx-auto bg-gradient-to-br from-[#f8fbff] to-[#e4effc] p-10 rounded-3xl shadow-[inset_6px_6px_12px_#cbd5e1,inset_-6px_-6px_12px_#ffffff] mt-6">
-          
-          {/* Регистрация */}
-          <div className="flex items-center justify-between mb-6 px-4 py-3 bg-[#f0f5fc] rounded-xl shadow-[6px_6px_12px_#cbd5e1,-6px_-6px_12px_#ffffff]">
-            <span className="text-lg font-medium text-[#732D87]">Уведомление при регистрации</span>
-            <Switch
-              checked={settings.registrationNotificationEnabled}
-              onChange={(value) => handleChange("registrationNotificationEnabled", value)}
-              offColor="#d1d5db"
-              onColor="#732D87"
-              className="rounded-lg shadow-md hover:scale-110 transition-transform duration-300"
-            />
-          </div>
-  
-          {/* Отмена регистрации */}
-          <div className="flex items-center justify-between mb-6 px-4 py-3 bg-[#f0f5fc] rounded-xl shadow-[6px_6px_12px_#cbd5e1,-6px_-6px_12px_#ffffff]">
-            <span className="text-lg font-medium text-[#732D87]">Уведомление при отмене регистрации</span>
-            <Switch
-              checked={settings.unregisterNotificationEnabled}
-              onChange={(value) => handleChange("unregisterNotificationEnabled", value)}
-              offColor="#d1d5db"
-              onColor="#732D87"
-              className="rounded-lg shadow-md hover:scale-110 transition-transform duration-300"
-            />
-          </div>
-  
-          {/* Напоминание */}
-          <div className="flex items-center justify-between mb-6 px-4 py-3 bg-[#f0f5fc] rounded-xl shadow-[6px_6px_12px_#cbd5e1,-6px_-6px_12px_#ffffff]">
-            <span className="text-lg font-medium text-[#732D87]">Напоминание о мероприятии</span>
-            <Switch
-              checked={settings.eventReminderEnabled}
-              onChange={(value) => handleChange("eventReminderEnabled", value)}
-              offColor="#d1d5db"
-              onColor="#732D87"
-              className="rounded-lg shadow-md hover:scale-110 transition-transform duration-300"
-            />
-          </div>
-  
-          {/* Время напоминания */}
-          <div className="mb-8">
-            <label className="block text-lg font-medium mb-2 text-[#732D87]">Время напоминания (часы до мероприятия):</label>
-            <input
-              type="number"
-              value={settings.registrationReminderHoursBeforeEvent}
-              onChange={(e) => handleChange("registrationReminderHoursBeforeEvent", Number(e.target.value))}
-              min="1"
-              className="border-none rounded-lg p-3 w-full text-lg bg-[#f0f5fc] text-[#6f7d97] shadow-[inset_4px_4px_8px_#cbd5e1,inset_-4px_-4px_8px_#ffffff] focus:outline-none focus:ring-2 focus:ring-[#732D87]"
-            />
-          </div>
-  
-          {/* Кнопка сохранения */}
-          <div className="flex justify-center">
             <button
-              onClick={handleSave}
-              className="px-8 py-3 bg-[#f0f5fc] font-semibold text-[#732D87] text-lg rounded-xl shadow-[6px_6px_12px_#cbd5e1,-6px_-6px_12px_#ffffff] hover:shadow-[2px_2px_6px_#cbd5e1,-2px_-2px_6px_#ffffff] active:shadow-inner hover:scale-105 transition-all duration-300"
+              onClick={copyInviteCode}
+              className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
             >
-              Сохранить настройки
+              <ClipboardIcon className="w-5 h-5" />
+              <span>Копировать</span>
             </button>
+          </section>
+        )}
+
+        {/* Настройки уведомлений */}
+        <section className="bg-white rounded-2xl shadow-lg p-6 space-y-6">
+          <h2 className="text-2xl font-semibold text-gray-800">Уведомления</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <label className="flex items-center justify-between bg-gray-50 p-4 rounded-lg">
+              <span>Регистрация</span>
+              <Switch
+                checked={cfg.registrationNotificationEnabled}
+                onChange={v =>
+                  setCfg(c => ({ ...c, registrationNotificationEnabled: v }))
+                }
+              />
+            </label>
+            <label className="flex items-center justify-between bg-gray-50 p-4 rounded-lg">
+              <span>Отмена регистрации</span>
+              <Switch
+                checked={cfg.unregisterNotificationEnabled}
+                onChange={v =>
+                  setCfg(c => ({ ...c, unregisterNotificationEnabled: v }))
+                }
+              />
+            </label>
+            <label className="flex items-center justify-between bg-gray-50 p-4 rounded-lg">
+              <span>Напоминание о событии</span>
+              <Switch
+                checked={cfg.eventReminderEnabled}
+                onChange={v =>
+                  setCfg(c => ({ ...c, eventReminderEnabled: v }))
+                }
+              />
+            </label>
+            <label className="flex items-center justify-between bg-gray-50 p-4 rounded-lg">
+              <span>За сколько часов до</span>
+              <input
+                type="number"
+                min="1"
+                value={cfg.registrationReminderHoursBeforeEvent}
+                onChange={e =>
+                  setCfg(c => ({
+                    ...c,
+                    registrationReminderHoursBeforeEvent: Number(e.target.value),
+                  }))
+                }
+                className="w-16 p-1 border rounded text-center"
+              />
+            </label>
+          </div>
+          <button
+            onClick={saveSettings}
+            className="mt-4 px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-500 text-white rounded-lg shadow hover:opacity-90 transition"
+          >
+            Сохранить настройки
+          </button>
+        </section>
+
+        {/* Таблица участников */}
+        <section className="bg-white rounded-2xl shadow-lg p-6">
+          <h2 className="text-2xl font-semibold text-gray-800 mb-4">
+            Участники команды
+          </h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b">
+                  <th className="py-2 px-4">Имя</th>
+                  <th className="py-2 px-4">Роль</th>
+                  <th className="py-2 px-4">Действия</th>
+                </tr>
+              </thead>
+              <tbody>
+                {members.map(user => (
+                  <tr key={user.id} className="hover:bg-gray-50">
+                    <td className="py-3 px-4">{user.fullName}</td>
+                    <td className="py-3 px-4">
+                      {user.role === "MODERATOR" ? (
+                        <span className="text-yellow-600 font-medium">
+                          Модератор
+                        </span>
+                      ) : (
+                        <span className="text-gray-600">Участник</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-4 flex gap-2">
+                      <button
+                        onClick={() => toggleModerator(user)}
+                        className="px-3 py-1 bg-gradient-to-r from-yellow-400 to-yellow-300 text-purple-900 rounded hover:opacity-90 transition"
+                      >
+                        {user.role === "MODERATOR"
+                          ? "Снять модератора"
+                          : "Сделать модератором"}
+                      </button>
+                      <button
+                        onClick={() => removeUser(user)}
+                        className="px-3 py-1 bg-red-400 text-white rounded hover:opacity-90 transition"
+                      >
+                        Удалить
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+
+      {/* Центрированный Toast */}
+      {toast && (
+        <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-50">
+          <div className="bg-gray-800 bg-opacity-80 text-white px-6 py-3 rounded-lg shadow-lg pointer-events-auto">
+            {toast}
           </div>
         </div>
-      </div>
-    );
-  });
-  
-  export default NotificationSettingsPage;
+      )}
+    </div>
+  )
+})
+
+export default NotificationSettingsPage

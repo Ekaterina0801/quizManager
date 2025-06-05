@@ -1,114 +1,130 @@
-
-import { makeAutoObservable } from "mobx";
-import UserAPI from "../api/userApi";
-import teamStore from "./teamStore";
-import { runInAction } from "mobx";
+// src/stores/userStore.js
+import { makeAutoObservable, runInAction } from 'mobx'
+import userService from '../api/userService'
+import commonStore from './commonStore'
+import teamStore from './teamStore';
+import { autorun } from 'mobx'
 class UserStore {
-    users = [];
-    selectedUser = null;
-    isLoading = false;
-    isAdmin = false;  
-    
-    constructor() {
-      makeAutoObservable(this);
-      this.loadFromLocalStorage();
-    }
+  me = null;
+  isLoadingMe = false;          // загрузка профиля
+  isLoadingAdmin = false;       // загрузка флагов админов
+  isAdminByTeam = new Map();    // командные админ-флаги
+  isMainAdmin = null;           // null = ещё не узнали, true/false = результат
+  selectedTeamId = null;
 
 
-  
-    loadFromLocalStorage() {
-      const savedUsers = sessionStorage.getItem("users");
-      const savedSelectedUser = sessionStorage.getItem("selectedUser");
-    console.log('savedUsers',savedUsers);
-    console.log('savedSelectedUser',savedSelectedUser);
-      if (savedUsers) {
-        this.users = JSON.parse(savedUsers);
+  setMe(me) {
+    this.me = me
+  }
+
+  constructor() {
+    makeAutoObservable(this);
+    this.selectedTeamId = Number(localStorage.getItem("teamId")) || null;
+
+    // как только придёт профиль или сменится команда — проверяем роли
+    autorun(() => {
+      const uid = this.me?.id;
+      const tid = this.selectedTeamId;
+      if (uid && tid != null) {
+        this.checkAdmins(uid, tid);
+      } else {
+        // сбрасываем состояние ожидания и флаги
+        runInAction(() => {
+          this.isMainAdmin = null;
+          this.isAdminByTeam.delete(tid);
+        });
       }
-  
-      if (savedSelectedUser) {
-        this.selectedUser = JSON.parse(savedSelectedUser);
-      }
-    }
-  
-    saveToLocalStorage(userId) {
-        console.log('userId',userId);
-    sessionStorage.setItem("selectedUser", JSON.stringify(userId));
-    }
-  
-    async fetchUsers() {
-      this.isLoading = true;
-      try {
-        const users = await UserAPI.getAllUsers();
-        this.users = users;
-        this.saveToLocalStorage(); 
-      } catch (error) {
-        console.error("Error fetching users:", error);
-      } finally {
-        this.isLoading = false;
-      }
-    }
-  
-    async fetchUserById(userId) {
-        this.isLoading = true;
-        try {
-          const user = await UserAPI.getUserById(userId);
-          
-          runInAction(() => {
-            this.selectedUser = user.id;
-            this.saveToLocalStorage(user.id);
-          });
-      
-          await this.checkIfUserIsAdmin(user.id); 
-        } catch (error) {
-          console.error("Error fetching user:", error);
-        } finally {
-          runInAction(() => {
-            this.isLoading = false;
-          });
-        }
-      }
-      
-      
-  
-      async checkIfUserIsAdmin(userId) {
-        const teamId = teamStore.selectedTeamId;
-        console.log("teamId:", teamId);
-      
-        if (!userId || !teamId) return; // Проверяем, есть ли userId и teamId
-      
-        try {
-          const isAdmin = await UserAPI.isUserAdmin(userId, teamId);
-          console.log("isAdmin:", isAdmin);
-      
-          runInAction(() => { 
-            this.isAdmin = isAdmin;
-          });
-        } catch (error) {
-          console.error("Error checking if user is admin:", error);
-        }
-      }
-      
-      
-  
-    async assignAdminRole(userId, teamId) {
-      try {
-        await AdminAPI.makeAdmin(userId, teamId);
-        this.fetchUserById(userId); 
-      } catch (error) {
-        console.error("Error assigning admin role:", error);
-      }
-    }
-  
-    async removeAdminRole(userId, teamId) {
-      try {
-        await AdminAPI.removeAdmin(userId, teamId);
-        this.fetchUserById(userId);
-      } catch (error) {
-        console.error("Error removing admin role:", error);
-      }
+    });
+  }
+
+  /** общий флаг: либо главный админ, либо командный админ */
+  get isAdmin() {
+    if (this.isMainAdmin === null) return false; // пока не узнали — считаем нет
+    if (this.isMainAdmin) return true;
+    const tid = this.selectedTeamId;
+    return tid != null ? this.isAdminByTeam.get(tid) || false : false;
+  }
+
+  /** Загрузить профиль текущего пользователя */
+  async fetchMe() {
+    const token = commonStore.token;
+    if (!token) return;
+    runInAction(() => {
+      this.isLoadingMe = true;
+      this.me = null;
+      this.isMainAdmin = null;
+      this.isAdminByTeam.clear();
+    });
+    try {
+      const me = await userService.getCurrentUser();
+      runInAction(() => {
+        this.me = me;
+      });
+    } catch {
+      commonStore.clearAuth();
+      runInAction(() => {
+        this.me = null;
+      });
+    } finally {
+      runInAction(() => {
+        this.isLoadingMe = false;
+      });
     }
   }
-  
-  const userStore = new UserStore();
-  export default userStore;
-  
+
+  /**
+   * Проверить сразу два флага:
+   *  — главный админ (isUserMainAdmin)
+   *  — админ конкретной команды (isUserAdmin)
+   */
+  async checkAdmins(userId, teamId) {
+    runInAction(() => {
+      this.isLoadingAdmin = true;
+      this.isMainAdmin = null;
+      this.isAdminByTeam.delete(teamId);
+    });
+    try {
+      const [teamAdmin, mainAdmin] = await Promise.all([
+        userService.isUserAdmin(userId, teamId),
+        userService.isUserMainAdmin(userId),
+      ]);
+      runInAction(() => {
+        this.isAdminByTeam.set(teamId, teamAdmin);
+        this.isMainAdmin = mainAdmin;
+      });
+    } catch {
+      runInAction(() => {
+        this.isAdminByTeam.set(teamId, false);
+        this.isMainAdmin = false;
+      });
+    } finally {
+      runInAction(() => {
+        this.isLoadingAdmin = false;
+      });
+    }
+  }
+
+  async joinTeam(code) {
+    if (!this.me) throw new Error("not signed in");
+    await userService.joinTeam(this.me.id, code);
+    await this.fetchMe();
+  }
+
+  async leaveTeam(code) {
+    if (!this.me) throw new Error("not signed in");
+    await userService.leaveTeam(this.me.id, code);
+    await this.fetchMe();
+  }
+
+  clearCurrentUser() {
+    runInAction(() => {
+      this.me = null;
+      this.isMainAdmin = null;
+      this.isAdminByTeam.clear();
+      this.selectedTeamId = null;
+      localStorage.removeItem("teamId");
+    });
+  }
+}
+
+export default new UserStore();

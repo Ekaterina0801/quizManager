@@ -1,111 +1,163 @@
-import { makeAutoObservable } from "mobx";
-import EventAPI from "../api/eventApi";
-import TeamAPI from "../api/teamApi";
-import teamStore from "./teamStore";
-
+import { makeAutoObservable, runInAction } from 'mobx'
+import eventService from '../api/eventService'
+import teamService from '../api/teamService'
+import userStore from './userStore'
+import teamStore from './teamStore'
 class EventStore {
-    event = null;
-    events = []; 
-    isLoading = false;
-    isEditing = false;
-    isModalOpen = false;
-    newParticipant = "";
-    selectedTeamId = null; 
+  events = [];
+  current = null;
+  isLoading = false;
+  eventsPage = null;  
+  page       = 0;
+  size       = 10;
+  sort       = "dateTime,desc";
+  search     = "";
+
+
+  constructor() {
+    makeAutoObservable(this);
+  }
+
+  setSearch(q) {
+    this.search = q;
+    this.page = 0;
+    this.fetchForTeam();
+  }
+
+  setPage(p) {
+    this.page = p;
+    this.fetchForTeam();
+  }
+
+  setSize(s) {
+    this.size = s;
+    this.page = 0;
+    this.fetchForTeam();
+  }
+
+  setSort(sort) {
+    this.sort = sort;
+    this.fetchForTeam();
+  }
+
+
   
-    constructor() {
-      makeAutoObservable(this);
-      this.selectedTeamId = teamStore.selectedTeam ? teamStore.selectedTeam.id : null;
+
+  async fetchEvent(id) {
+    runInAction(() => this.isLoading = true);
+    try {
+      const ev = await eventService.getEventById(id);
+      //eventService.getById(id);
+      runInAction(() => this.current = ev);
+    } finally {
+      runInAction(() => this.isLoading = false);
     }
-  
-    setTeamId(teamId) {
-      this.selectedTeamId = teamId;
+  }
+
+
+  async fetchForTeam() {
+    const team = teamStore.selected;
+    if (!team?.id) throw new Error("Нет выбранной команды");
+    this.isLoading = true;
+    try {
+      const page = await eventService.fetchEvents({
+        teamId: team.id,
+        page:   this.page,
+        size:   this.size,
+        sort:   this.sort,
+        search: this.search
+      });
+      runInAction(() => {
+        this.eventsPage = page;
+        console.log("EventsPage", page);
+      });
+    } finally {
+      runInAction(() => (this.isLoading = false));
     }
-  
-    async fetchEventsForTeam() {
-        console.log('id', this.selectedTeamId);
-        if (this.selectedTeamId) {
-            this.isLoading = true;
-            try {
-                const teamEvents = await TeamAPI.getEventsByTeamId(this.selectedTeamId);
-                console.log('events', teamEvents);
-                this.events = teamEvents;
-            } catch (error) {
-                console.error("Error fetching events:", error);
-            } finally {
-                this.isLoading = false;
-            }
-        }
-    }
-  
-    async fetchEvent(eventId) {
-        this.isLoading = true;
-        try {
-            this.event = await EventAPI.getEventById(eventId);
-        } catch (error) {
-            console.error("Error fetching event:", error);
-        } finally {
-            this.isLoading = false;
-        }
+  }
+
+  /**
+   * Создание события и автоматическое обновление списка
+   * @param {object} eventData — { date, time, title, location, description, posterFile }
+   */
+  async create(eventData) {
+    const team = teamStore.selected
+    const user = userStore.me
+    if (!team?.id || !user?.id) {
+      throw new Error("Нет текущей команды или пользователя")
     }
 
-    async createEvent(eventData, imageFile, userId) {
-        console.log('eventData', eventData);
-        if (!this.selectedTeamId) {
-            console.error("No selected team ID. Cannot create event.");
-            return;
-        }
-        
-        try {
-            this.isLoading = true;
-            const newEvent = await EventAPI.createEvent(eventData, imageFile, userId, this.selectedTeamId);
-            console.log(newEvent);
-            this.events.push(newEvent);
-        } catch (error) {
-            console.error("Error creating event:", error);
-        } finally {
-            this.isLoading = false;
-        }
-    }
+    this.isLoading = true
+    try {
+      // 1) отправляем создание
+      await eventService.createEvent(user.id, team.id, eventData)
 
-    async updateEvent(eventId, eventData, imageFile, userId) {
-        console.log('eventData', eventData);
-        try {
-            await EventAPI.updateEvent(eventId, eventData, imageFile, userId);
-            this.fetchEvent(eventId);
-            this.isEditing = false;
-        } catch (error) {
-            console.error("Error updating event:", error);
-        }
+      // 2) потом просто заново вызываем наш же fetchForTeam,
+      //    который подставит team.id и обновит this.events
+      await this.fetchForTeam(team.id)
+    } finally {
+      runInAction(() => {
+        this.isLoading = false
+      })
     }
-  
-    async registerForEvent(eventId, registrationData) {
-        try {
-            await EventAPI.registerForEvent(eventId, registrationData);
-            this.fetchEvent(eventId);
-        } catch (error) {
-            console.error("Error registering for event:", error);
-        }
-    }
-  
-    async unregisterFromEvent(eventId, registrationId, telegramId) {
-        try {
-            await EventAPI.unregisterFromEvent(eventId, registrationId, telegramId);
-            this.fetchEvent(eventId);
-        } catch (error) {
-            console.error("Error unregistering from event:", error);
-        }
-    }
+  }
 
-    async deleteEvent(eventId, userId) {
-        try {
-            await EventAPI.deleteEvent(eventId, userId);
-            this.events = this.events.filter(event => event.id !== eventId);
-        } catch (error) {
-            console.error("Error deleting event:", error);
-        }
+  async update(id, data) {
+    this.isLoading = true;
+    try {
+      await eventService.updateEvent(id, data);
+      runInAction(() => {
+        this.current = this.fetchEvent(id);
+        this.events = this.events.map(x =>
+          x.id === updated.id ? updated : x
+        );
+      });
+    } finally {
+      runInAction(() => (this.isLoading = false));
     }
-    
+  }
+
+  async delete(id) {
+    const team = teamStore.selected, user = userStore.me;
+    if (!team || !user) throw new Error('No team or user');
+    runInAction(() => this.isLoading = true);
+    try {
+      await eventService.deleteEvent(team.id, user.id, id);
+      runInAction(() => {
+        this.events = this.events.filter(x => x.id !== id);
+        if (this.current?.id === id) this.current = null;
+      });
+    } finally {
+      runInAction(() => this.isLoading = false);
+    }
+  }
+
+  async register(eventId, fullName) {
+  const user = userStore.me;
+  if (!user?.id) throw new Error("Пользователь не авторизован");
+
+  try {
+    await eventService.registerForEvent(eventId, {
+      userId:   user.id,
+      fullName,
+    });
+  } catch (err) {
+    if (!/Parser is unable to parse/.test(err.message)) {
+      throw err;
+    }
+  }
+
+  // после любого успешного запроса (или "успешного" parse-error) — подтягиваем
+  await this.fetchEvent(eventId);
 }
-  
-const eventStore = new EventStore();
-export default eventStore;
+
+  /** Отписаться + обновить registrations */
+  async unregister(eventId, registrationId) {
+    const user = userStore.me;
+    if (!user?.id) throw new Error("Пользователь не авторизован");
+    await eventService.unregisterFromEvent(eventId, registrationId, user.id);
+    await this.fetchEvent(eventId);
+  }
+}
+
+export default new EventStore();

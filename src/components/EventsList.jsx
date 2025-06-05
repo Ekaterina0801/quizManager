@@ -1,177 +1,187 @@
-import { useEffect, useState } from "react";
-import EventAPI from "../api/eventApi";
-import eventStore from "../store/eventStore";
-import teamStore from "../store/teamStore";
-import { useNavigate } from "react-router-dom";
+
+
 import defaultPoster from "../assets/defaultPoster.jpg";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+
+
 export default function EventsList({ events }) {
   const navigate = useNavigate();
-  const [showPastEvents, setShowPastEvents] = useState(true);
+  const [showPast, setShowPast] = useState(false);
 
   if (!events || events.length === 0) {
     return (
-      <div className="text-gray-500 text-center">
+      <div className="py-20 text-center text-gray-400">
         Нет мероприятий для этой команды
       </div>
     );
   }
 
-  const filterAndSortEvents = (events) => {
-    const now = new Date();
+  const now = Date.now();
+  const upcoming = events
+    .filter((e) => e.dateTime && new Date(e.dateTime).getTime() > now)
+    .sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime));
+  const past = events
+    .filter((e) => e.dateTime && new Date(e.dateTime).getTime() <= now)
+    .sort((a, b) => new Date(b.dateTime) - new Date(a.dateTime));
 
-    const upcomingEvents = events
-      .filter((event) => event.dateTime && new Date(event.dateTime) > now)
-      .sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime));
-
-    const pastEvents = events
-      .filter((event) => event.dateTime && new Date(event.dateTime) <= now)
-      .sort((a, b) => new Date(b.dateTime) - new Date(a.dateTime));
-
-    return { upcomingEvents, pastEvents };
-  };
-
-  const groupEventsByMonth = (events) => {
-    return events.reduce((acc, event) => {
-      const date = new Date(event.dateTime);
-      const monthYear = date.toLocaleString("ru-RU", {
+  const groupByMonth = (list) =>
+    list.reduce((acc, ev) => {
+      const key = new Date(ev.dateTime).toLocaleString("ru-RU", {
         month: "long",
         year: "numeric",
       });
-
-      if (!acc[monthYear]) {
-        acc[monthYear] = [];
-      }
-      acc[monthYear].push(event);
+      (acc[key] = acc[key] || []).push(ev);
       return acc;
     }, {});
-  };
 
-  const { upcomingEvents, pastEvents } = filterAndSortEvents(events);
-  const groupedUpcomingEvents = groupEventsByMonth(upcomingEvents);
-  const groupedPastEvents = groupEventsByMonth(pastEvents);
+  const upGroups = groupByMonth(upcoming);
+  const pastGroups = groupByMonth(past);
 
   return (
-    <div className="flex justify-center">
-      <div className="max-w-7xl w-full px-6 py-16 rounded-2xl bg-gradient-to-br from-[#e4effc] to-[#cbd5e1] shadow-[inset_4px_4px_8px_#b0bec5,inset_-4px_-4px_8px_#ffffff]">
-        <h2 className="text-3xl font-bold tracking-tight text-[#732D87] text-center">
+    <div className="bg-white py-16">
+      <div className="container mx-auto px-6">
+        <h2 className="text-4xl font-bold text-gray-900 text-center mb-8">
           Мероприятия
         </h2>
 
-        {/* Переключатель для отображения прошедших мероприятий */}
-        <div className="flex justify-center mt-6">
-          <label className="flex items-center space-x-2 cursor-pointer">
+        <div className="flex justify-center mb-12">
+          <label className="inline-flex items-center space-x-2 text-gray-700">
             <input
               type="checkbox"
-              checked={showPastEvents}
-              onChange={() => setShowPastEvents(!showPastEvents)}
-              className="form-checkbox h-5 w-5 text-[#732D87] rounded-lg focus:ring-[#732D87]"
+              checked={showPast}
+              onChange={() => setShowPast((f) => !f)}
+              className="h-5 w-5 rounded border-gray-300 text-purple-600 focus:ring-purple-400"
             />
-            <span className="text-lg text-[#732D87]">
-              Показать прошедшие мероприятия
-            </span>
+            <span className="text-lg">Показать прошедшие</span>
           </label>
         </div>
 
-        {/* Предстоящие мероприятия */}
-        {Object.keys(groupedUpcomingEvents).length > 0 && (
-          <div className="mt-8">
-            <h3 className="text-2xl font-bold text-[#732D87] mb-6">
-              Предстоящие мероприятия
-            </h3>
-            {Object.entries(groupedUpcomingEvents).map(
-              ([monthYear, events]) => (
-                <div key={monthYear} className="mb-8">
-                  <h4 className="text-xl font-semibold text-[#732D87] mb-4">
-                    {monthYear}
-                  </h4>
-                  <div className="grid grid-cols-2 gap-y-8 sm:grid-cols-2 sm:gap-x-10 lg:grid-cols-3 lg:gap-x-12">
-                    {events.map((event) => (
-                      <EventCard
-                        key={event.id}
-                        event={event}
-                        navigate={navigate}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )
-            )}
-          </div>
+        {Object.keys(upGroups).length > 0 && (
+          <EventsSection
+            title="Предстоящие"
+            groups={upGroups}
+            navigate={navigate}
+          />
         )}
 
-        {/* Прошедшие мероприятия */}
-        {showPastEvents && Object.keys(groupedPastEvents).length > 0 && (
-          <div className="mt-8">
-            <h3 className="text-2xl font-bold text-[#732D87] mb-6">
-              Прошедшие мероприятия
-            </h3>
-            {Object.entries(groupedPastEvents).map(([monthYear, events]) => (
-              <div key={monthYear} className="mb-8">
-                <h4 className="text-xl font-semibold text-[#732D87] mb-4">
-                  {monthYear}
-                </h4>
-                <div className="grid grid-cols-2 gap-y-8 sm:grid-cols-2 sm:gap-x-10 lg:grid-cols-3 lg:gap-x-12">
-                  {events.map((event) => (
-                    <EventCard
-                      key={event.id}
-                      event={event}
-                      navigate={navigate}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+        {showPast && Object.keys(pastGroups).length > 0 && (
+          <EventsSection title="Прошедшие" groups={pastGroups} navigate={navigate} />
         )}
       </div>
     </div>
   );
 }
 
-// Компонент карточки мероприятия
-const EventCard = ({ event, navigate }) => {
+function EventsSection({ title, groups, navigate }) {
   return (
-    <div className="group relative flex flex-col overflow-hidden rounded-2xl p-6 bg-gradient-to-br from-[#e4effc] to-[#cbd5e1] shadow-[6px_6px_12px_#b0bec5,-6px_-6px_12px_#ffffff] hover:shadow-[4px_4px_8px_#b0bec5,-4px_-4px_8px_#ffffff] transition-all duration-300">
-      {event.posterUrl ? (
-        <img
-          alt={event.name}
-          src={event.posterUrl}
-          className="aspect-[3/4] w-full rounded-xl shadow-[inset_4px_4px_8px_#b0bec5,inset_-4px_-4px_8px_#ffffff] object-cover group-hover:opacity-80 sm:h-96"
-        />
-      ) : (
-        <img
-          src={defaultPoster}
-          alt={`Poster for event`}
-          className="rounded-3xl w-full max-h-[500px] object-cover shadow-neomorph"
-        />
-      )}
-      <div className="flex flex-1 flex-col space-y-2 p-4">
-        <h3 className="text-xl font-semibold text-[#732D87]">{event.name}</h3>
-        <p className="text-sm text-[#732D87]">
-          {event.dateTime
-            ? new Date(event.dateTime).toLocaleString("ru-RU", {
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-              })
-            : "Дата не указана"}
-        </p>
-        <p className="text-sm text-[#732D87]">
+    <div className="mb-16">
+      <h3 className="text-2xl font-semibold text-gray-800 mb-6">{title}</h3>
+      {Object.entries(groups).map(([month, evs]) => (
+        <div key={month} className="mb-10">
+          <h4 className="text-xl text-gray-600 mb-4">{month}</h4>
+          <div className="grid gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            {evs.map((e) => (
+              <EventCard key={e.id} event={e} navigate={navigate} />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+function EventCard({ event, navigate }) {
+  const dateObj = event.dateTime ? new Date(event.dateTime) : null;
+  const dateStr = dateObj
+    ? dateObj.toLocaleDateString("ru-RU", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })
+    : "—";
+  const timeStr = dateObj
+    ? dateObj.toLocaleTimeString("ru-RU", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "";
+
+  return (
+    <div
+      onClick={() => navigate(`/events/${event.id}`)}
+      className="
+        relative
+        bg-white
+        rounded-2xl
+        overflow-hidden
+        cursor-pointer
+        group
+        shadow-md
+        hover:shadow-2xl
+        transition-shadow
+        border
+        border-transparent
+        hover:border-purple-500
+      "
+    >
+      <div className="h-64 bg-gray-100 relative">
+        {event.posterUrl ? (
+          <img
+            src={event.posterUrl}
+            alt={event.name}
+            className="object-cover w-full h-full"
+          />
+        ) : (
+          <img
+            src={defaultPoster}
+            alt="Постер отсутствует"
+            className="object-cover w-full h-full"
+          />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+        <div className="absolute bottom-3 left-3 text-white flex items-center space-x-3 text-sm">
+          <div className="px-2 py-1 bg-purple-600 bg-opacity-80 rounded">
+            {dateStr}
+          </div>
+          <div className="px-2 py-1 bg-purple-600 bg-opacity-80 rounded">
+            {timeStr}
+          </div>
+        </div>
+      </div>
+
+      <div className="p-6 min-h-[14rem] flex flex-col bg-purple-50">
+        <h5 className="text-lg font-semibold text-gray-900 mb-3 group-hover:text-purple-600 transition-colors">
+          {event.name}
+        </h5>
+        <p className="text-gray-700 line-clamp-4 mb-6">
           {event.description || "Описание отсутствует"}
         </p>
-        <button
-          onClick={() => navigate(`/events/${event.id}`)}
-          className="mt-4 w-full px-6 py-3 bg-gradient-to-br from-[#e4effc] to-[#cbd5e1] 
-  text-[#732D87] text-sm font-semibold rounded-lg shadow-[6px_6px_12px_#b0bec5,-6px_-6px_12px_#ffffff] 
-  hover:shadow-[4px_4px_8px_#b0bec5,-4px_-4px_8px_#ffffff] 
-  active:shadow-[inset_4px_4px_8px_#b0bec5,inset_-4px_-4px_8px_#ffffff] 
-  transition-all duration-300 text-center flex justify-center items-center whitespace-nowrap"
-        >
-          Перейти
-        </button>
+        <div className="mt-auto flex justify-end">
+          <button
+            onClick={() => navigate(`/events/${event.id}`)}
+            className="
+              inline-flex items-center space-x-2
+              text-purple-600 hover:text-purple-800
+              font-semibold
+            "
+          >
+            <span>Подробнее</span>
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M17 8l4 4m0 0l-4 4m4-4H3"
+              />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   );
-};
+}

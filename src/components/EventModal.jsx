@@ -1,117 +1,219 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from 'react'
+export default function EventModal({
+  isOpen,
+  onClose,
+  onSubmit,
+  title = 'Добавить событие' 
+}) {
+  const [formData, setFormData] = useState({
+    date:              '',
+    time:              '',
+    title:             '',
+    location:          '',
+    description:       '',
+    linkToAlbum:       '',
+    teamResult:        '',
+    isRegistrationOpen: true,
+    isHidden:          false,
+    posterFile:        null,
+    posterUrl:         '',
+    price:             ''
+  })
 
-const EventModal = ({
-    isModalOpen,
-    handleModalClose,
-    handleInputChange,
-    handleFormSubmit,
-    newEvent,
-    handleFileChange,
-  }) => {
-    useEffect(() => {
-      if (isModalOpen) {
-        document.body.style.overflow = "hidden";
-      } else {
-        document.body.style.overflow = "auto"; 
-      }
-  
-      return () => {
-        document.body.style.overflow = "auto";
-      };
-    }, [isModalOpen]);
-  
-    if (!isModalOpen) return null;
-  
-    return (
-      <div className="fixed inset-0 flex items-center justify-center bg-[rgba(255,255,255,0.8)] bg-opacity-50 z-50">
-        <div className="bg-white p-6 rounded-lg shadow-lg w-96 max-h-[80vh] overflow-auto border border-[#732D87]">
-          <h3 className="text-xl font-semibold mb-4 text-[#732D87] border-b-2 pb-2 border-[#732D87]">Добавить событие</h3>
-          <form onSubmit={handleFormSubmit}>
-            <label className="block mb-2 text-sm font-medium text-gray-700">Дата</label>
-            <input
-              type="date"
-              name="date"
-              value={newEvent.date}
-              onChange={handleInputChange}
-              className="w-full p-2 border rounded-md mb-4 border-[#732D87] focus:outline-none focus:ring-2 focus:ring-[#732D87] focus:border-transparent"
-              required
-            />
-            <label className="block mb-2 text-sm font-medium text-gray-700">Время</label>
-            <input
-              type="time"
-              name="time"
-              value={newEvent.time}
-              onChange={handleInputChange}
-              className="w-full p-2 border rounded-md mb-4 border-[#732D87] focus:outline-none focus:ring-2 focus:ring-[#732D87] focus:border-transparent"
-              required
-            />
-            <label className="block mb-2 text-sm font-medium text-gray-700">Название мероприятия</label>
+  useEffect(() => {
+    document.body.style.overflow = isOpen ? 'hidden' : 'auto'
+    return () => { document.body.style.overflow = 'auto' }
+  }, [isOpen])
+
+  if (!isOpen) return null
+
+  const handleChange = e => {
+    const { name, value, type, checked } = e.target
+    setFormData(fd => ({
+      ...fd,
+      [name]: type === 'checkbox' ? checked : value
+    }))
+  }
+
+  const handleFile = e => {
+    const file = e.target.files[0]
+    if (!file) return
+    setFormData(fd => ({
+      ...fd,
+      posterFile: file,
+      posterUrl:  URL.createObjectURL(file)
+    }))
+  }
+
+  const handleSubmit = e => {
+    e.preventDefault()
+    // pack everything up
+    onSubmit(formData)
+  }
+
+  return (
+    <div className="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-purple-900 via-purple-700 to-pink-600 bg-opacity-80 z-50 p-4">
+      {/* subtle pattern */}
+      <div className="absolute inset-0 bg-[url('/assets/trophy-flames.svg')] opacity-10" />
+
+      <div className="relative bg-gradient-to-tr from-purple-800 to-purple-600 rounded-3xl shadow-2xl w-full max-w-lg p-8 overflow-auto max-h-[90vh]">
+        {/* title */}
+        <h3 className="text-3xl font-extrabold text-white text-center mb-6">
+          {title}
+        </h3>
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="flex space-x-4">
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-white">Дата</label>
+              <input
+                type="date"
+                name="date"
+                value={formData.date}
+                onChange={handleChange}
+                className="mt-1 w-full px-4 py-2 rounded-lg bg-purple-900 text-white focus:ring-yellow-300"
+                required
+              />
+            </div>
+            <div className="w-24">
+              <label className="block text-sm font-medium text-white">Время</label>
+              <input
+                type="time"
+                name="time"
+                value={formData.time}
+                onChange={handleChange}
+                className="mt-1 w-full px-4 py-2 rounded-lg bg-purple-900 text-white focus:ring-yellow-300"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-white">Название</label>
             <input
               type="text"
               name="title"
-              value={newEvent.title}
-              onChange={handleInputChange}
-              className="w-full p-2 border rounded-md mb-4 border-[#732D87] focus:outline-none focus:ring-2 focus:ring-[#732D87] focus:border-transparent"
+              value={formData.title}
+              onChange={handleChange}
+              className="mt-1 w-full px-4 py-2 rounded-lg bg-purple-900 text-white focus:ring-yellow-300"
               required
             />
-            <label className="block mb-2 text-sm font-medium text-gray-700">Место</label>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-white">Место</label>
             <input
               type="text"
               name="location"
-              value={newEvent.location}
-              onChange={handleInputChange}
-              className="w-full p-2 border rounded-md mb-4 border-[#732D87] focus:outline-none focus:ring-2 focus:ring-[#732D87] focus:border-transparent"
+              value={formData.location}
+              onChange={handleChange}
+              className="mt-1 w-full px-4 py-2 rounded-lg bg-purple-900 text-white focus:ring-yellow-300"
               required
             />
-            <label className="block mb-2 text-sm font-medium text-gray-700">Описание</label>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-white">Стоимость</label>
+            <input
+              type="text"
+              name="price"
+              value={formData.price}
+              onChange={handleChange}
+              className="mt-1 w-full px-4 py-2 rounded-lg bg-purple-900 text-white focus:ring-yellow-300"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-white">Описание</label>
             <textarea
               name="description"
-              value={newEvent.description}
-              onChange={handleInputChange}
-              className="w-full p-2 border rounded-md mb-4 border-[#732D87] focus:outline-none focus:ring-2 focus:ring-[#732D87] focus:border-transparent"
-              required
-            ></textarea>
-  
-            {/* Поле для загрузки изображения афиши */}
-            <label className="block mb-2 text-sm font-medium text-gray-700">Афиша мероприятия</label>
+              value={formData.description}
+              onChange={handleChange}
+              rows={3}
+              className="mt-1 w-full px-4 py-2 rounded-lg bg-purple-900 text-white focus:ring-yellow-300"
+            />
+          </div>
+        
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-white">Ссылка на альбом</label>
+              <input
+                type="url"
+                name="linkToAlbum"
+                value={formData.linkToAlbum}
+                onChange={handleChange}
+                className="mt-1 w-full px-4 py-2 rounded-lg bg-purple-900 text-white focus:ring-yellow-300"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-white">Результат команды</label>
+              <input
+                type="text"
+                name="teamResult"
+                value={formData.teamResult}
+                onChange={handleChange}
+                className="mt-1 w-full px-4 py-2 rounded-lg bg-purple-900 text-white focus:ring-yellow-300"
+              />
+            </div>
+          </div>
+
+          <div className="flex space-x-6 text-white">
+            <label className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                name="isRegistrationOpen"
+                checked={formData.isRegistrationOpen}
+                onChange={handleChange}
+                className="h-5 w-5 rounded bg-purple-900 text-yellow-300 focus:ring-yellow-300"
+              />
+              <span>Регистрация открыта</span>
+            </label>
+            <label className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                name="isHidden"
+                checked={formData.isHidden}
+                onChange={handleChange}
+                className="h-5 w-5 rounded bg-purple-900 text-yellow-300 focus:ring-yellow-300"
+              />
+              <span>Скрыть событие</span>
+            </label>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-white">Афиша (изображение)</label>
             <input
               type="file"
-              name="poster"
-              onChange={handleFileChange}
               accept="image/*"
-              className="w-full p-2 border rounded-md mb-4 border-[#732D87] focus:outline-none focus:ring-2 focus:ring-[#732D87] focus:border-transparent"
+              onChange={handleFile}
+              className="mt-1 text-white"
             />
-  
-            {/* Предварительный просмотр загруженного изображения */}
-            {newEvent.posterUrl && (
-              <div className="mt-2 text-center">
-                <img
-                  src={newEvent.posterUrl}
-                  alt="Poster Preview"
-                  className="max-w-full h-auto rounded-md"
-                />
-              </div>
+            {formData.posterUrl && (
+              <img
+                src={formData.posterUrl}
+                alt="Poster preview"
+                className="mt-2 w-full h-48 object-cover rounded-lg shadow-inner"
+              />
             )}
-  
-            <div className="flex justify-between mt-4">
-              <button
-                type="button"
-                onClick={handleModalClose}
-                className="text-[#732D87] hover:text-[#5a1e67] transition-colors duration-300"
-              >
-                Отменить
-              </button>
-              <button
-                type="submit"
-                className="py-2 px-4 bg-[#732D87] text-white rounded-md hover:bg-[#5a1e67] transition-colors duration-300"
-              >
-                Сохранить
-              </button>
-            </div>
-          </form>
-        </div>
+          </div>
+
+          <div className="flex justify-end space-x-4 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-6 py-2 bg-gray-400 text-gray-800 rounded-lg hover:opacity-90 transition"
+            >
+              Отменить
+            </button>
+            <button
+              type="submit"
+              className="px-6 py-2 bg-yellow-400 text-purple-900 font-bold rounded-lg hover:opacity-90 transition"
+            >
+              Сохранить
+            </button>
+          </div>
+        </form>
       </div>
-    );
-  };
-  
-  export default EventModal;
+    </div>
+  )
+}

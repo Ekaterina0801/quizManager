@@ -1,53 +1,56 @@
-import { makeAutoObservable, runInAction } from "mobx";
-import TeamNotificationAPI from "../api/teamNotificationsApi";
+import { makeAutoObservable, runInAction } from 'mobx'
+import TeamNotificationService from '../api/teamNotificationsService';
+import userStore from './userStore'
 
 class NotificationStore {
-  notifications = {};
-  isLoading = false;
+  settings = {}
+  isLoading = false
 
   constructor() {
-    makeAutoObservable(this);
+    makeAutoObservable(this)
   }
 
-  async fetchNotificationSettings(teamId) {
-    this.isLoading = true;
+  /** Загрузить или взять из кэша */
+  async load(teamId = userStore.selectedTeamId) {
+    if (!teamId) return
+    if (this.settings[teamId]) return this.settings[teamId]
+
+    this.isLoading = true
     try {
-      const settings = await TeamNotificationAPI.getSettingsForTeam(teamId);
-      console.log("Загруженные настройки:", settings);
+      const cfg = await TeamNotificationService.getSettings(teamId)
       runInAction(() => {
-        this.notifications[teamId] = settings;
-      });
-      return settings;
-    } catch (error) {
-      console.error("Ошибка при загрузке настроек:", error);
-      throw error;
+        this.settings[teamId] = cfg
+      })
+      return cfg
+    } catch (err) {
+      console.error('loadNotificationSettings', err)
+      throw err
     } finally {
       runInAction(() => {
-        this.isLoading = false;
-      });
+        this.isLoading = false
+      })
     }
   }
 
-  async updateNotificationSettings(teamId, updatedSettings) {
-    this.isLoading = true;
-    console.log(updatedSettings);
+  /** Сохранить */
+  async save(updated, teamId = userStore.selectedTeamId) {
+    if (!teamId) throw new Error('No team')
+    this.isLoading = true
     try {
-      const updated = await TeamNotificationAPI.createOrUpdateSettings(teamId, updatedSettings);
-      console.log("Настройки сохранены");
+      const cfg = await TeamNotificationService.saveSettings(teamId, updated)
       runInAction(() => {
-        this.notifications[teamId] = updated;
-      });
-      return updated;
-    } catch (error) {
-      console.error("Ошибка при обновлении настроек:", error);
-      throw error;
+        this.settings[teamId] = cfg
+      })
+      return cfg
+    } catch (err) {
+      console.error('updateNotificationSettings', err)
+      throw err
     } finally {
       runInAction(() => {
-        this.isLoading = false;
-      });
+        this.isLoading = false
+      })
     }
   }
 }
 
-const notificationStore = new NotificationStore();
-export default notificationStore;
+export default new NotificationStore()

@@ -7,189 +7,143 @@ import { useEffect, useState } from "react";
 import eventStore from "../../store/eventStore";
 import EventModal from "../EventModal";
 import userStore from "../../store/userStore";
-const EventsPage = observer(() => {
-    const { selectedTeamId } = teamStore;
-    const teamId = selectedTeamId;
-    const [viewMode, setViewMode] = useState("list");
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [isSubmitting, setIsSubmitting] = useState(false);
+import { useNavigate} from "react-router-dom";
+import { useCallback } from "react";
+import { FaSearch, FaSort, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 
-    const [newEvent, setNewEvent] = useState({
-      date: "",
-      time: "",
-      title: "",
-      location: "",
-      description: "",
-      posterUrl: "",
-      posterFile: null,
-    });
-  
-    const { selectedUser, isAdmin, isLoading, fetchUserById } = userStore;
-  
-    const userId = selectedUser;
-  
-    useEffect(() => {
-      if (selectedUser) {
-        console.log('selectedUser', selectedUser);
-        fetchUserById(selectedUser);
-      }
-    }, [teamId, selectedUser]);
-  
-    useEffect(() => {
-      if (teamId && selectedUser) {
-        userStore.checkIfUserIsAdmin(selectedUser);
-      }
-    }, [teamId, selectedUser]);
-  
-    useEffect(() => {
-      if (teamId) {
-        eventStore.setTeamId(teamId);
-        eventStore.fetchEventsForTeam();
-      }
-    }, [teamId]);
-  
-    const handleSwitchChange = (nextChecked) => {
-      setViewMode(nextChecked ? "calendar" : "list");
-    };
-  
-    const handleAddEvent = () => {
-      setIsModalOpen(true);
-    };
-  
-    const handleModalClose = () => {
-      setIsModalOpen(false);
-    };
-  
-    const handleInputChange = (e) => {
-      setNewEvent({ ...newEvent, [e.target.name]: e.target.value });
-    };
-  
-    const handleFileChange = (e) => {
-      if (e.target.files[0]) {
-        const file = e.target.files[0];
-        const fileUrl = URL.createObjectURL(file);
-        setNewEvent({ ...newEvent, posterUrl: fileUrl, posterFile: file });
-      }
-    };
-  
-    const handleFormSubmit = async (e) => {
-        e.preventDefault();
-    
-        if (!teamId || !selectedUser) {
-          console.error("Ошибка: отсутствует teamId или userId.");
-          return;
-        }
-    
-        setIsSubmitting(true); 
-    
-        const formData = new FormData();
-        formData.append("name", newEvent.title);
-        formData.append("dateTime", `${newEvent.date}T${newEvent.time}:00`);
-        formData.append("location", newEvent.location);
-        formData.append("description", newEvent.description || "");
-        formData.append("linkToAlbum", "");
-        formData.append("teamResult", "");
-        formData.append("teamId", teamId);
-        formData.append("userId", selectedUser);
-    
-        if (newEvent.posterFile) {
-          formData.append("imageFile", newEvent.posterFile);
-        }
-        console.log('userId', selectedUser);
-        try {
-          eventStore.setTeamId(teamId);
-          await eventStore.createEvent(formData); 
-          setIsModalOpen(false);
-          setNewEvent({
-            date: "",
-            time: "",
-            title: "",
-            location: "",
-            description: "",
-            posterUrl: "",
-            posterFile: null,
-          });
-        } catch (error) {
-          console.error("Ошибка при создании события:", error);
-        } finally {
-          setIsSubmitting(false); 
-        }
-    };
-    
-  
-    if (!teamId) {
-      return (
-        <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-[#ffffff] to-[#DCE6F5] via-[#DCE6F5]">
-          <div className="bg-white p-8 rounded-lg shadow-2xl text-center max-w-md w-full">
-            <p className="text-xl font-semibold text-red-500">
-              Ошибка: команда не выбрана
-            </p>
+const EventsPage = observer(() => {
+  const navigate = useNavigate();
+  const [viewMode, setViewMode] = useState("list");
+  const [isOpen, setIsOpen] = useState(false);
+
+  const { selected: team } = teamStore;
+  const { eventsPage, page, size, sort, search, isLoading } = eventStore;
+
+  useEffect(() => {
+    if (team?.id) eventStore.fetchForTeam();
+    else navigate("/");
+  }, [team?.id]);
+
+  if (!team?.id) return <div className="p-6 text-center text-red-600">Выберите команду</div>;
+
+  return (
+    <div className="flex flex-col min-h-screen bg-gray-50">
+      <TopBar
+        title="Мероприятия"
+        onSwitchChange={() => setViewMode(vm => (vm === "list" ? "calendar" : "list"))}
+        switchChecked={viewMode === "calendar"}
+        showSettingsIcon
+      />
+
+      <div className="px-6 py-4 space-y-6">
+        {/* Фильтры */}
+        <div className="bg-white rounded-2xl shadow p-4 flex flex-col md:flex-row md:items-center md:space-x-4 space-y-3 md:space-y-0">
+          <div className="flex items-center bg-gray-100 rounded-md px-3 py-2 flex-1">
+            <FaSearch className="text-gray-500 mr-2" />
+            <input
+              type="text"
+              placeholder="Поиск по названию..."
+              value={search}
+              onChange={e => eventStore.setSearch(e.target.value)}
+              className="w-full bg-transparent focus:outline-none text-gray-700"
+            />
           </div>
-        </div>
-      );
-    }
-  
-    return (
-        <div className="min-h-screen flex flex-col">
-          <TopBar
-            title=""
-            showBackButton={false}
-            onSwitchChange={handleSwitchChange}
-            switchChecked={viewMode === "calendar"}
-            showSettingsIcon={true}
-          />
-    
-          <div className="flex-grow flex flex-col items-center pt-10 bg-transparent">
-            <div className="max-w-5xl w-full bg-transparent p-4 rounded-3xl">
-              {eventStore.isLoading ? (
-                <div className="text-center text-gray-500">
-                  Загрузка мероприятий...
-                </div>
-              ) : eventStore.events.length === 0 ? (
-                <div className="text-center text-gray-500">Нет мероприятий</div>
-              ) : (
-                <div className="transition-opacity duration-300">
-                  {viewMode === "list" ? (
-                    <EventsList events={eventStore.events} />
-                  ) : (
-                    <Calendar events={eventStore.events} />
-                  )}
-                </div>
-              )}
+          <div className="flex items-center space-x-3">
+            <div className="flex items-center bg-gray-100 rounded-md px-3 py-2">
+              <FaSort className="text-gray-500 mr-2" />
+              <select
+                value={sort}
+                onChange={e => eventStore.setSort(e.target.value)}
+                className="bg-transparent focus:outline-none"
+              >
+                <option value="dateTime,desc">Сначала новые</option>
+                <option value="dateTime,asc">Сначала старые</option>
+                <option value="name,asc">A→Я</option>
+                <option value="name,desc">Я→A</option>
+              </select>
+            </div>
+            <div className="flex items-center bg-gray-100 rounded-md px-3 py-2">
+              <select
+                value={size}
+                onChange={e => eventStore.setSize(Number(e.target.value))}
+                className="bg-transparent focus:outline-none"
+              >
+                {[5, 10, 20, 50].map(n => (
+                  <option key={n} value={n}>
+                    {n} на стр.
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
-    
-          {/* Кнопка для добавления события */}
-          {isAdmin && (
+        </div>
+
+        {/* Контент */}
+        <div className="bg-white rounded-2xl shadow overflow-hidden">
+          {isLoading ? (
+            <div className="py-20 text-center text-gray-500">Загрузка…</div>
+          ) : viewMode === "calendar" ? (
+            <Calendar events={eventsPage || []} />
+          ) : (
+            <EventsList events={eventsPage || []} />
+          )}
+        </div>
+
+        {/* Пагинация */}
+        {eventsPage && eventsPage.totalPages > 1 && (
+          <div className="flex justify-center items-center space-x-2 py-4">
             <button
-              onClick={handleAddEvent}
-              className="fixed bottom-5 right-5 w-16 h-16 rounded-full bg-[#732D87] text-white flex items-center justify-center shadow-xl hover:bg-[#5a1e67] transition-colors duration-300"
+              onClick={() => page > 0 && eventStore.setPage(page - 1)}
+              className="p-2 bg-white border rounded-md hover:bg-purple-50 transition disabled:opacity-50"
+              disabled={page === 0}
             >
-              <span className="text-3xl font-bold">+</span>
+              <FaChevronLeft />
             </button>
-          )}
-    
-          {/* Модальное окно для добавления события */}
-          <EventModal
-            isModalOpen={isModalOpen}
-            handleModalClose={handleModalClose}
-            handleInputChange={handleInputChange}
-            handleFormSubmit={handleFormSubmit}
-            newEvent={newEvent}
-            handleFileChange={handleFileChange}
-          />
-    
-          {/* Спиннер, если отправка в процессе */}
-          {isSubmitting && (
-            <div className="fixed top-0 left-0 right-0 bottom-0 bg-[#e4effc] flex items-center justify-center z-50">
-            <div className="animate-spin rounded-full border-t-4 border-b-4 border-[#732D87] w-16 h-16">
-            </div>
-        </div>
-          )}
-        </div>
-    );
-    
-  });
-  
-  export default EventsPage;
-  
+            {Array.from({ length: eventsPage.totalPages }, (_, i) => (
+              <button
+                key={i}
+                onClick={() => eventStore.setPage(i)}
+                className={`
+                  w-10 h-10 flex items-center justify-center rounded-md transition
+                  ${i === page ? "bg-purple-600 text-white" : "bg-white border hover:bg-purple-50"}
+                `}
+              >
+                {i + 1}
+              </button>
+            ))}
+            <button
+              onClick={() => page < eventsPage.totalPages - 1 && eventStore.setPage(page + 1)}
+              className="p-2 bg-white border rounded-md hover:bg-purple-50 transition disabled:opacity-50"
+              disabled={page === eventsPage.totalPages - 1}
+            >
+              <FaChevronRight />
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Кнопка «+» */}
+      {userStore.isAdmin && (
+        <button
+          onClick={() => setIsOpen(true)}
+          className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-br from-purple-600 to-pink-500 text-white text-3xl rounded-full shadow-lg hover:scale-105 transform transition"
+        >
+          +
+        </button>
+      )}
+
+      {/* Модалка */}
+      <EventModal
+        isOpen={isOpen}
+        onClose={() => setIsOpen(false)}
+        onSubmit={async data => {
+          await eventStore.create(data);
+          setIsOpen(false);
+        }}
+        title="Новое событие"
+      />
+    </div>
+  );
+});
+
+export default EventsPage;
