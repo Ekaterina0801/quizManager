@@ -10,7 +10,6 @@ class NotificationStore {
     makeAutoObservable(this)
   }
 
-  /** Загрузить или взять из кэша */
   async load(teamId = userStore.selectedTeamId) {
     if (!teamId) return
     if (this.settings[teamId]) return this.settings[teamId]

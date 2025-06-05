@@ -8,7 +8,6 @@ import eventStore from "../../store/eventStore";
 import EventModal from "../EventModal";
 import userStore from "../../store/userStore";
 import { useNavigate} from "react-router-dom";
-import { useCallback } from "react";
 import { FaSearch, FaSort, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 
 const EventsPage = observer(() => {

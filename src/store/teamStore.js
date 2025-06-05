@@ -43,9 +43,7 @@ class TeamStore {
       runInAction(() => {
         this.selected = team
         localStorage.setItem('teamId', id)
-        // Обновляем userStore.selectedTeamId:
         userStore.selectedTeamId = id
-        // Запускаем проверку админа
         userStore.checkAdmins(userStore.me.id,id)
       })
     } finally {

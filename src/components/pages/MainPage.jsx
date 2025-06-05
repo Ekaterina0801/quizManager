@@ -10,7 +10,7 @@ import TeamList from "../TeamList";
 import LoginRegisterModal from "../LoginRegisterModal";
 import JoinTeamModal from "../JoinTeamModal";
 import CreateTeamModal from "../CreateTeamModal";
-import { Navigate } from "react-router-dom";
+
 const MainPage = observer(() => {
   const navigate = useNavigate()
   const [showJoin,   setShowJoin]   = useState(false)
