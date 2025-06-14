@@ -1,6 +1,6 @@
 import { agent, tokenPlugin } from './agent'
 
-const API_BASE_URL = 'http://localhost:8080/api'
+const API_BASE_URL = 'http://46.149.66.58:8082/api'
 export const requests = {
   get: (url, config = {}) => {
     const req = agent
