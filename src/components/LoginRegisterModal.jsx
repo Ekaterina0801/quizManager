@@ -21,29 +21,46 @@ export default observer(function LoginRegisterModal({ show, onSuccess }) {
   };
 
   const handleAuth = async e => {
-    e.preventDefault();
-    setError(null);
-    if (mode === "register" && password !== confirm) {
-      setError("Пароли не совпадают");
-      return;
+  e.preventDefault();
+  setError(null);
+
+  if (mode === "register" && password !== confirm) {
+    setError("Пароли не совпадают");
+    return;
+  }
+
+  setLoading(true);
+  try {
+    let user;
+    if (mode === "login") {
+      user = await commonStore.signIn({ username, password });
+    } else {
+      user = await commonStore.signUp({ username, fullname, email, password, confirm });
     }
-    setLoading(true);
+    onSuccess(user);
+  } catch (ex) {
+    console.error("Auth error", ex);
+
+    // Попробуй извлечь message
+    let msg = "Неизвестная ошибка";
+
     try {
-      let user;
-      if (mode === "login") {
-        user = await commonStore.signIn({ username, password });
-      } else {
-        user = await commonStore.signUp({ username, fullname, email, password, confirm });
+      if (ex.response?.body?.message) {
+        msg = ex.response.body.message;
+      } else if (typeof ex.response?.text === "string") {
+        const parsed = JSON.parse(ex.response.text);
+        msg = parsed.message || parsed.error || msg;
       }
-      onSuccess(user);
-    } catch (ex) {
-      console.error("Auth error", ex);
-      const msg = ex.response?.body?.message || ex.message || "Неизвестная ошибка";
-      setError(msg);
-    } finally {
-      setLoading(false);
+    } catch (err) {
+      console.warn("Ошибка при парсинге тела ответа:", err);
     }
-  };
+
+    setError(msg);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-purple-900 via-purple-700 to-pink-600 bg-opacity-80 z-50 p-4">

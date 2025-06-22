@@ -1,76 +1,79 @@
 import { agent, tokenPlugin } from './agent'
 
-const API_BASE_URL = 'http://46.149.66.58:8082/api'
+const API_BASE_URL = 'http://46.149.66.58:8080/api'
+//const API_BASE_URL = 'http://localhost:8080/api'
+function isFormData(body) {
+  return typeof FormData !== 'undefined' && body instanceof FormData
+}
+
+function safeParseResponse(res, allowEmpty = false) {
+  const text = res.text?.trim()
+
+  if (!text && allowEmpty) return null
+
+  try {
+    return JSON.parse(text)
+  } catch (err) {
+    if (allowEmpty && res.status >= 200 && res.status < 300) {
+      return null
+    }
+    throw err
+  }
+}
+
 export const requests = {
   get: (url, config = {}) => {
-    const req = agent
-      .get(`${API_BASE_URL}${url}`)
-      .use(tokenPlugin)
+    const req = agent.get(`${API_BASE_URL}${url}`).use(tokenPlugin)
 
     if (config.responseType === 'blob') {
       req.responseType('blob')
     }
 
     return req.then(res =>
-      config.responseType === 'blob' ? res.xhr.response : res.body
+      config.responseType === 'blob' ? res.xhr.response : safeParseResponse(res, config.allowEmpty)
     )
   },
 
   post: (url, body, config = {}) => {
-    const req = agent
-      .post(`${API_BASE_URL}${url}`)
-      .send(body)
-      .use(tokenPlugin)
-
-    // если нужно слить allowEmpty
-    if (config.allowEmpty) {
-      // custom parser: если тело пустое — возвращать {}
-      req.parse((res, cb) => {
-        let data = ''
-        res.setEncoding('utf8')
-        res.on('data', chunk => (data += chunk))
-        res.on('end', () => {
-          if (!data) return cb(null, {})      // пустой ответ → пустой объект
-          try {
-            cb(null, JSON.parse(data))
-          } catch (e) {
-            cb(e)
-          }
-        })
-      })
-    }
+    const req = agent.post(`${API_BASE_URL}${url}`).use(tokenPlugin)
 
     if (config.responseType === 'blob') {
       req.responseType('blob')
     }
 
+    if (isFormData(body)) {
+      req.send(body)
+      // не устанавливаем type('form') — это ломает boundary
+    } else {
+      req.send(body)
+    }
+
     return req.then(res =>
-      config.responseType === 'blob' ? res.xhr.response : res.body
+      config.responseType === 'blob' ? res.xhr.response : safeParseResponse(res, config.allowEmpty)
     )
   },
 
   put: (url, body, config = {}) => {
-    const req = agent
-      .put(`${API_BASE_URL}${url}`)
-      .send(body)
-      .use(tokenPlugin)
+    const req = agent.put(`${API_BASE_URL}${url}`).use(tokenPlugin).send(body)
+
     if (config.responseType === 'blob') {
       req.responseType('blob')
     }
+
     return req.then(res =>
-      config.responseType === 'blob' ? res.xhr.response : res.body
+      config.responseType === 'blob' ? res.xhr.response : safeParseResponse(res, config.allowEmpty)
     )
   },
 
   delete: (url, config = {}) => {
-    const req = agent
-      .del(`${API_BASE_URL}${url}`)
-      .use(tokenPlugin)
+    const req = agent.del(`${API_BASE_URL}${url}`).use(tokenPlugin)
+
     if (config.responseType === 'blob') {
       req.responseType('blob')
     }
+
     return req.then(res =>
-      config.responseType === 'blob' ? res.xhr.response : res.body
+      config.responseType === 'blob' ? res.xhr.response : safeParseResponse(res, config.allowEmpty)
     )
   },
 }

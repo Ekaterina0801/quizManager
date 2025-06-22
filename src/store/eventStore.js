@@ -83,6 +83,7 @@ class EventStore {
   async create(eventData) {
     const team = teamStore.selected
     const user = userStore.me
+    console.log("create event", team.id, user.id)
     if (!team?.id || !user?.id) {
       throw new Error("Нет текущей команды или пользователя")
     }
@@ -122,7 +123,7 @@ class EventStore {
     if (!team || !user) throw new Error('No team or user');
     runInAction(() => this.isLoading = true);
     try {
-      await eventService.deleteEvent(team.id, user.id, id);
+      await eventService.deleteEvent(id, user.id);
       runInAction(() => {
         this.events = this.events.filter(x => x.id !== id);
         if (this.current?.id === id) this.current = null;

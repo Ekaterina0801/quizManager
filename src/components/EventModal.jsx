@@ -1,28 +1,36 @@
 import React, { useEffect, useState } from 'react'
+
 export default function EventModal({
   isOpen,
   onClose,
   onSubmit,
-  title = 'Добавить событие' 
+  title = 'Добавить событие'
 }) {
-  const [formData, setFormData] = useState({
-    date:              '',
-    time:              '',
-    title:             '',
-    location:          '',
-    description:       '',
-    linkToAlbum:       '',
-    teamResult:        '',
+  const initialState = {
+    date: '',
+    time: '',
+    title: '',
+    location: '',
+    description: '',
+    linkToAlbum: '',
+    teamResult: '',
     isRegistrationOpen: true,
-    isHidden:          false,
-    posterFile:        null,
-    posterUrl:         '',
-    price:             ''
-  })
+    isHidden: false,
+    posterFile: null,
+    posterUrl: '',
+    price: ''
+  }
+
+  const [formData, setFormData] = useState(initialState)
 
   useEffect(() => {
     document.body.style.overflow = isOpen ? 'hidden' : 'auto'
-    return () => { document.body.style.overflow = 'auto' }
+    if (!isOpen) {
+      setFormData(initialState)
+    }
+    return () => {
+      document.body.style.overflow = 'auto'
+    }
   }, [isOpen])
 
   if (!isOpen) return null
@@ -41,23 +49,22 @@ export default function EventModal({
     setFormData(fd => ({
       ...fd,
       posterFile: file,
-      posterUrl:  URL.createObjectURL(file)
+      posterUrl: URL.createObjectURL(file)
     }))
   }
 
-  const handleSubmit = e => {
+  const handleSubmit = async e => {
     e.preventDefault()
-    // pack everything up
-    onSubmit(formData)
+    await onSubmit(formData)
+    setFormData(initialState)
+    onClose()
   }
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-purple-900 via-purple-700 to-pink-600 bg-opacity-80 z-50 p-4">
-      {/* subtle pattern */}
       <div className="absolute inset-0 bg-[url('/assets/trophy-flames.svg')] opacity-10" />
 
       <div className="relative bg-gradient-to-tr from-purple-800 to-purple-600 rounded-3xl shadow-2xl w-full max-w-lg p-8 overflow-auto max-h-[90vh]">
-        {/* title */}
         <h3 className="text-3xl font-extrabold text-white text-center mb-6">
           {title}
         </h3>
@@ -71,8 +78,8 @@ export default function EventModal({
                 name="date"
                 value={formData.date}
                 onChange={handleChange}
-                className="mt-1 w-full px-4 py-2 rounded-lg bg-purple-900 text-white focus:ring-yellow-300"
                 required
+                className="mt-1 w-full px-4 py-2 rounded-lg bg-purple-900 text-white focus:ring-yellow-300"
               />
             </div>
             <div className="w-24">
@@ -82,8 +89,8 @@ export default function EventModal({
                 name="time"
                 value={formData.time}
                 onChange={handleChange}
-                className="mt-1 w-full px-4 py-2 rounded-lg bg-purple-900 text-white focus:ring-yellow-300"
                 required
+                className="mt-1 w-full px-4 py-2 rounded-lg bg-purple-900 text-white focus:ring-yellow-300"
               />
             </div>
           </div>
@@ -95,8 +102,8 @@ export default function EventModal({
               name="title"
               value={formData.title}
               onChange={handleChange}
-              className="mt-1 w-full px-4 py-2 rounded-lg bg-purple-900 text-white focus:ring-yellow-300"
               required
+              className="mt-1 w-full px-4 py-2 rounded-lg bg-purple-900 text-white focus:ring-yellow-300"
             />
           </div>
 
@@ -107,10 +114,11 @@ export default function EventModal({
               name="location"
               value={formData.location}
               onChange={handleChange}
-              className="mt-1 w-full px-4 py-2 rounded-lg bg-purple-900 text-white focus:ring-yellow-300"
               required
+              className="mt-1 w-full px-4 py-2 rounded-lg bg-purple-900 text-white focus:ring-yellow-300"
             />
           </div>
+
           <div>
             <label className="block text-sm font-medium text-white">Стоимость</label>
             <input
@@ -132,7 +140,6 @@ export default function EventModal({
               className="mt-1 w-full px-4 py-2 rounded-lg bg-purple-900 text-white focus:ring-yellow-300"
             />
           </div>
-        
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>

@@ -11,6 +11,7 @@ import userStore from "../../store/userStore";
 import defaultPoster from "../../assets/defaultPoster.jpg";
 import TopBar from "../TopBar";
 import { FaTimes } from "react-icons/fa";
+import { ToastContainer, toast } from "react-toastify";
 const EventPage = observer(() => {
   const { eventId } = useParams();
   const navigate = useNavigate();
@@ -18,10 +19,9 @@ const EventPage = observer(() => {
   const [editOpen, setEditOpen] = useState(false);
   const [regOpen, setRegOpen] = useState(false);
   const [newName, setNewName] = useState("");
-
-  // Для подтверждения удаления регистрации
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [toDelete, setToDelete] = useState(null);
+  const [deleteEventConfirmOpen, setDeleteEventConfirmOpen] = useState(false);
 
   useEffect(() => {
     if (eventId) {
@@ -41,9 +41,8 @@ const EventPage = observer(() => {
   }
 
   const isAdmin = userStore.isAdmin;
-  const meId   = userStore.me?.id;
-  const regs   = ev.registrations ?? [];
-
+  const meId = userStore.me?.id;
+  const regs = ev.registrations ?? [];
 
   function requestUnregister(regId, fullName) {
     setToDelete({ id: regId, fullName });
@@ -67,7 +66,6 @@ const EventPage = observer(() => {
       />
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        {/* Poster */}
         <div className="w-full rounded-xl overflow-hidden shadow-lg bg-white">
           <img
             src={ev.posterUrl || defaultPoster}
@@ -76,7 +74,6 @@ const EventPage = observer(() => {
           />
         </div>
 
-        {/* Info Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-4">
             <h1 className="text-4xl font-extrabold text-gray-800">{ev.name}</h1>
@@ -136,7 +133,6 @@ const EventPage = observer(() => {
             )}
           </div>
 
-          {/* Description */}
           <div className="bg-white p-6 rounded-xl shadow-lg prose prose-lg max-w-none">
             {ev.description ? (
               <div dangerouslySetInnerHTML={{ __html: ev.description }} />
@@ -146,7 +142,6 @@ const EventPage = observer(() => {
           </div>
         </div>
 
-        {/* Participants */}
         <section>
           <h2 className="text-2xl font-semibold text-gray-800 mb-4">
             Участники
@@ -177,7 +172,6 @@ const EventPage = observer(() => {
           </ul>
         </section>
 
-        {/* Admin Actions */}
         {isAdmin && (
           <div className="flex flex-wrap gap-4">
             <button
@@ -187,10 +181,7 @@ const EventPage = observer(() => {
               Редактировать
             </button>
             <button
-              onClick={() => {
-                eventStore.delete(ev.id);
-                navigate("/events");
-              }}
+              onClick={() => setDeleteEventConfirmOpen(true)}
               className="flex-1 min-w-[150px] px-6 py-2 bg-red-500 text-white rounded-lg shadow hover:bg-red-600 transition"
             >
               Удалить
@@ -199,7 +190,6 @@ const EventPage = observer(() => {
         )}
       </main>
 
-      {/* Edit Modal */}
       {editOpen && (
         <EditEventModal
           isOpen={editOpen}
@@ -218,7 +208,6 @@ const EventPage = observer(() => {
         />
       )}
 
-      {/* Registration Modal */}
       {regOpen && (
         <div
           className="fixed inset-0 flex items-center justify-center z-50"
@@ -256,34 +245,55 @@ const EventPage = observer(() => {
         </div>
       )}
 
-      {/* Confirm Unregister Modal */}
       {confirmOpen && toDelete && (
-        <div
-          className="fixed inset-0 flex items-center justify-center z-50"
-          style={{ backgroundColor: "rgba(0,0,0,0.4)" }}
-        >
+        <div className="fixed inset-0 flex items-center justify-center z-50" style={{ backgroundColor: "rgba(0,0,0,0.4)" }}>
           <div className="bg-white rounded-xl shadow-lg w-full max-w-xs p-6 space-y-4">
             <h3 className="text-lg font-semibold text-gray-800">Подтвердите действие</h3>
-            <p className="text-gray-700">
-              Вы уверены, что хотите отписать <strong>{toDelete.fullName}</strong>?
-            </p>
+            <p className="text-gray-700">Вы уверены, что хотите отписать <strong>{toDelete.fullName}</strong>?</p>
             <div className="flex justify-end gap-4">
               <button
                 onClick={() => setConfirmOpen(false) || setToDelete(null)}
                 className="px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400 transition"
-              >
-                Отмена
-              </button>
+              >Отмена</button>
               <button
                 onClick={confirmUnregister}
                 className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
-              >
-                Отписать
-              </button>
+              >Отписать</button>
             </div>
           </div>
         </div>
       )}
+
+      {deleteEventConfirmOpen && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/30 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-xs p-6 space-y-4">
+            <h3 className="text-lg font-semibold text-gray-800">Удалить событие</h3>
+            <p className="text-gray-700">Вы уверены, что хотите удалить это событие?</p>
+            <div className="flex justify-end gap-4">
+              <button
+                onClick={() => setDeleteEventConfirmOpen(false)}
+                className="px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400 transition"
+              >Отмена</button>
+              <button
+                onClick={async () => {
+                  try {
+                    console.log("Удаление события:", ev.id);
+                    await eventStore.delete(ev.id);
+                    toast.success("Событие удалено");
+                    navigate("/events");
+                  } catch (e) {
+                    console.error(e);
+                    toast.error("Ошибка при удалении");
+                  }
+                }}
+                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
+              >Удалить</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ToastContainer position="bottom-right" />
     </div>
   );
 });

@@ -3,6 +3,8 @@ import { requests } from "./requests";
 const BASE = "/events";
 
 const EventService = {
+
+  
   /** Получить все события */
   getAllEvents() {
     return requests.get(`${BASE}`);
@@ -37,7 +39,15 @@ const EventService = {
     fd.append('teamId', teamId)
     fd.append('userId', userId)
     fd.append('isRegistrationOpen', 'true')
+    fd.append('isHidden', data.isHidden ? 'true' : 'false')
+    if (data.linkToAlbum) fd.append('linkToAlbum', data.linkToAlbum)
+    if (data.teamResult) fd.append('teamResult', data.teamResult)
+    if (data.price) fd.append('price', data.price)
+    //console.log("fd", fd)
     if (data.posterFile) fd.append('imageFile', data.posterFile)
+    for (let [key, value] of fd.entries()) {
+  console.log(`${key}: ${value}`)
+}
 
     // передаём флаг allowEmpty, чтобы requests.post не лез в JSON.parse пустого тела
     return requests.post(BASE, fd, { allowEmpty: true })
