@@ -32,12 +32,14 @@
     "ra-data-simple-rest": "^5.8.3",
     "react": "^18.3.1",
     "react-admin": "^5.8.3",
+    "react-day-picker": "^9.7.0",
     "react-dom": "^18.3.1",
     "react-icons": "^5.4.0",
     "react-router-dom": "^7.1.4",
     "react-switch": "^7.1.0",
     "react-toastify": "^11.0.5",
     "superagent": "^10.2.1",
+    "tailwind-merge": "^3.3.1",
     "tailwind-variants": "^0.3.1"
   },
   "devDependencies": {

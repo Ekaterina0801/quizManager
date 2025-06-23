@@ -10,11 +10,10 @@ const EventService = {
     return requests.get(`${BASE}`);
   },
 
-  fetchEvents({ teamId, page, size, sort, search }) {
+  fetchEvents({ teamId, page, sort, search }) {
     const params = new URLSearchParams({
       teamId,
       page,
-      size,
       sort,
     });
     if (search) params.append("search", search);

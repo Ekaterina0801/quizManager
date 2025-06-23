@@ -1,20 +1,23 @@
-import React, { useState } from "react";
+
 import { observer } from "mobx-react-lite";
-import { Link, useNavigate } from "react-router-dom";
-import clsx from "clsx";
+import React, { useState } from "react";
 
-
-const Calendar = observer(({ events }) => {
-  const navigate = useNavigate();
+const Calendar = ({ events }) => {
   const today = new Date();
   const [month, setMonth] = useState(today.getMonth());
   const [year, setYear] = useState(today.getFullYear());
-  const [modalEvents, setModalEvents] = useState(null);
+  const [selectedDay, setSelectedDay] = useState(null);
+  const [selectedEvent, setSelectedEvent] = useState(null);
 
-  const monthNames = ["Янв", "Фев", "Мар", "Апр", "Май", "Июн", "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"];
-  const weekDays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+  const monthNames = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", 
+                     "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
+  const weekDays = ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"];
+  
+  const formatDate = (date) => {
+    return `${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+  };
 
-  const changeMonth = dir => {
+  const changeMonth = (dir) => {
     if (dir === "prev") {
       if (month === 0) {
         setMonth(11);
@@ -28,134 +31,291 @@ const Calendar = observer(({ events }) => {
     }
   };
 
-  const days = (() => {
+  const getDays = () => {
     const first = new Date(year, month, 1);
-    const offset = first.getDay() === 0 ? 6 : first.getDay() - 1;
-    const last = new Date(year, month + 1, 0).getDate();
-    const total = Math.ceil((offset + last) / 7) * 7;
+    const startDay = (first.getDay() + 6) % 7;
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    const total = Math.ceil((startDay + lastDay) / 7) * 7;
 
     return Array.from({ length: total }, (_, i) => {
-      const day = i - offset + 1;
-      if (i < offset || day > last) return null;
+      const day = i - startDay + 1;
+      if (i < startDay || day > lastDay) return null;
+      
       const dayEvents = events.filter(ev => {
-        const dt = new Date(ev.dateTime);
-        return dt.getFullYear() === year && dt.getMonth() === month && dt.getDate() === day;
+        const d = new Date(ev.dateTime);
+        return d.getFullYear() === year && 
+               d.getMonth() === month && 
+               d.getDate() === day;
       });
-      return { day, events: dayEvents };
+      
+      return { 
+        date: new Date(year, month, day),
+        day, 
+        events: dayEvents 
+      };
     });
-  })();
+  };
 
-  const openModal = evs => setModalEvents(evs);
-  const closeModal = () => setModalEvents(null);
+  const days = getDays();
+
+  // Обработчик клика по дню
+  const handleDayClick = (day) => {
+    if (day && day.events.length > 0) {
+      setSelectedDay(day);
+    }
+  };
+
+  // Обработчик клика по событию
+  const handleEventClick = (event, e) => {
+    e.stopPropagation();
+    setSelectedEvent(event);
+  };
 
   return (
-    <>
-      <div className="bg-white rounded-2xl shadow-lg overflow-hidden mx-auto max-w-6xl">
-        <div className="h-1 bg-gradient-to-r from-purple-400 via-pink-400 to-pink-300" />
-        <div className="flex items-center justify-between p-4">
-          <button onClick={() => changeMonth("prev")} className="p-2 rounded-full bg-purple-50 hover:bg-purple-100">‹</button>
-          <h2 className="text-lg sm:text-xl font-semibold text-gray-800">{monthNames[month]} {year}</h2>
-          <button onClick={() => changeMonth("next")} className="p-2 rounded-full bg-purple-50 hover:bg-purple-100">›</button>
-        </div>
-        <div className="grid grid-cols-7 text-center text-xs sm:text-sm font-medium text-gray-600 border-b">
-          {weekDays.map((wd, i) => <div key={i} className={i >= 5 ? "text-pink-500" : ""}>{wd}</div>)}
-        </div>
-        <div className="grid grid-cols-7 gap-2 p-3">
-          {days.map((item, idx) => (
-            <div key={idx} className="flex flex-col">
-              <div
-                onClick={() => item?.events?.length && openModal(item.events)}
-                className="relative rounded-lg overflow-hidden cursor-pointer aspect-square bg-purple-50"
-              >
-                {item ? (() => {
-                  const posters = item.events.filter(ev => ev.posterUrl).slice(0, 2);
-                  if (posters.length === 0) {
-                    return <div className="w-full h-full bg-purple-200 rounded-lg" />;
-                  }
-                  return posters.map((ev, i) => (
-                    <img
-                      key={ev.id}
-                      src={ev.posterUrl}
-                      className="absolute w-full h-full object-cover rounded-lg"
-                      style={{ opacity: i === 1 ? 0.5 : 1, zIndex: 2 - i }}
-                      alt=""
-                    />
-                  ));
-                })() : null}
-                {item && (
-                  <div className="absolute top-1 left-1 bg-white px-2 py-0.5 rounded text-xs font-medium shadow z-10">
-                    {item.day}
-                  </div>
-                )}
-              </div>
-              {item?.events?.length > 0 && (
-                <ul className="mt-1 text-xs text-gray-700">
-                  {item.events.slice(0, 2).map(ev => (
-                    <li key={ev.id} className="truncate">{ev.name}</li>
-                  ))}
-                  {item.events.length > 2 && (
-                    <li className="text-gray-500">+{item.events.length - 2} ещё</li>
-                  )}
-                </ul>
-              )}
-            </div>
-          ))}
-        </div>
+    <div className="max-w-7xl mx-auto px-2 py-4 relative">
+      {/* Заголовок календаря */}
+      <div className="flex justify-between items-center mb-3">
+        <button 
+          onClick={() => changeMonth("prev")} 
+          className="text-xl px-4 py-2 bg-pink-100 hover:bg-pink-200 rounded-full"
+        >
+          ‹
+        </button>
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-800">
+          {monthNames[month]} {year}
+        </h2>
+        <button 
+          onClick={() => changeMonth("next")} 
+          className="text-xl px-4 py-2 bg-pink-100 hover:bg-pink-200 rounded-full"
+        >
+          ›
+        </button>
       </div>
 
-      {modalEvents && (
-        <div
-          className="fixed inset-0 flex items-center justify-center z-50 bg-black/30 backdrop-blur-sm"
-          onClick={closeModal}
-        >
-          <div
-            className="bg-white rounded-xl shadow-lg w-full max-w-md p-6"
-            onClick={e => e.stopPropagation()}
+      {/* Дни недели */}
+      <div className="grid grid-cols-7 gap-1 text-center font-bold text-xs sm:text-sm">
+        {weekDays.map((day, idx) => (
+          <div 
+            key={idx} 
+            className={`py-2 ${idx >= 5 ? 'bg-pink-50' : 'bg-pink-100'} rounded`}
           >
-            <h3 className="text-xl font-semibold mb-4 text-gray-800">События дня</h3>
-            <ul className="space-y-4">
-              {modalEvents.map(ev => (
-                <li key={ev.id} className="flex">
-                  <Link to={`/events/${ev.id}`} className="flex-shrink-0 mr-4">
-                    {ev.posterUrl ? (
-                      <img
-                        src={ev.posterUrl}
-                        alt=""
-                        className="w-16 h-16 object-cover rounded"
+            {day}
+          </div>
+        ))}
+      </div>
+
+      {/* Ячейки дней */}
+      <div className="grid grid-cols-7 gap-1 mt-1">
+        {days.map((item, idx) => (
+          <div 
+            key={idx} 
+            className={`
+              min-h-[80px] sm:min-h-[120px] 
+              border border-pink-200 rounded
+              ${item ? item.events.length > 0 ? 'bg-white cursor-pointer' : 'bg-white' : 'bg-gray-100 opacity-70'}
+              relative overflow-hidden
+            `}
+            onClick={() => handleDayClick(item)}
+          >
+            {item ? (
+              <>
+                {/* Число дня */}
+                <div className="absolute top-1 left-1 text-[10px] sm:text-xs font-bold bg-white px-1.5 py-0.5 rounded z-10">
+                  {item.day}
+                </div>
+                
+                {/* События */}
+                <div className="pt-5 pb-1 px-1 h-full">
+                  {item.events.length === 1 && item.events[0].posterUrl ? (
+                    // Полноэкранный постер для одиночного события
+                    <div 
+                      className="absolute inset-0 w-full h-full"
+                      onClick={(e) => handleEventClick(item.events[0], e)}
+                    >
+                      <img 
+                        src={item.events[0].posterUrl} 
+                        alt={item.events[0].name} 
+                        className="w-full h-full object-cover"
                       />
-                    ) : (
-                      <div className="w-16 h-16 bg-purple-300 rounded flex items-center justify-center">
-                        <span className="text-white font-bold">
-                          {ev.name.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase()}
-                        </span>
+                      <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-1 text-center">
+                        <div className="text-[10px] sm:text-xs font-bold text-white truncate">
+                          {item.events[0].name}
+                        </div>
+                        <div className="text-[8px] sm:text-[10px] text-white">
+                          {item.events[0].time}
+                        </div>
                       </div>
+                    </div>
+                  ) : (
+                    // Список событий (обычный вид)
+                    <div className="h-full overflow-y-auto no-scrollbar">
+                      {item.events.map((ev, i) => (
+                        <div 
+                          key={ev.id} 
+                          className="mb-0.5 last:mb-0 rounded-sm overflow-hidden shadow-xs cursor-pointer"
+                          onClick={(e) => handleEventClick(ev, e)}
+                        >
+                          <div className={`
+                            relative h-5 sm:h-7 
+                            ${ev.posterUrl ? '' : 'bg-pink-500'}
+                            flex items-center justify-center
+                          `}>
+                            {ev.posterUrl ? (
+                              <img 
+                                src={ev.posterUrl} 
+                                alt={ev.name} 
+                                className="absolute inset-0 w-full h-full object-cover"
+                              />
+                            ) : null}
+                            
+                            <div className="relative z-10 px-1 w-full">
+                              <div className="text-[8px] sm:text-xs font-bold text-white truncate">
+                                {ev.name}
+                              </div>
+                              <div className="text-[7px] sm:text-[10px] text-white opacity-90 hidden sm:block">
+                                {ev.time}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Название квиза под карточкой - всегда видно */}
+                          {ev.quizName && (
+                            <div className="bg-white p-0.5 text-[7px] sm:text-[8px] text-gray-700 font-medium truncate">
+                              {ev.quizName}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : null}
+          </div>
+        ))}
+      </div>
+
+      {/* Модальное окно для дня */}
+      {selectedDay && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-hidden">
+            <div className="p-3 sm:p-4 border-b">
+              <h3 className="text-lg sm:text-xl font-bold">
+                События {formatDate(selectedDay.date)}
+              </h3>
+            </div>
+            
+            <div className="overflow-y-auto max-h-[70vh]">
+              {selectedDay.events.map(event => (
+                <div 
+                  key={event.id} 
+                  className="p-3 sm:p-4 border-b cursor-pointer hover:bg-pink-50"
+                  onClick={() => {
+                    setSelectedDay(null);
+                    setSelectedEvent(event);
+                  }}
+                >
+                  <div className="flex items-start">
+                    {event.posterUrl && (
+                      <img 
+                        src={event.posterUrl} 
+                        alt={event.name} 
+                        className="w-12 h-12 sm:w-16 sm:h-16 object-cover rounded mr-3"
+                      />
                     )}
-                  </Link>
-                  <div className="flex-1">
-                    <Link to={`/events/${ev.id}`} className="block font-medium text-gray-800 hover:text-purple-600">
-                      {ev.name}
-                    </Link>
-                    <div className="text-gray-500 text-sm">
-                      {new Date(ev.dateTime).toLocaleTimeString("ru-RU", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
+                    <div>
+                      <h4 className="font-bold text-sm sm:text-base">{event.name}</h4>
+                      <div className="text-xs sm:text-sm text-gray-600 mt-1">
+                        <div>Время: {event.time}</div>
+                        <div>Место: {event.location}</div>
+                        {event.quizName && <div>Квиз: {event.quizName}</div>}
+                      </div>
                     </div>
                   </div>
-                </li>
+                </div>
               ))}
-            </ul>
-            <button
-              onClick={closeModal}
-              className="mt-6 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
-            >
-              Закрыть
-            </button>
+            </div>
+            
+            <div className="p-3 sm:p-4 flex justify-end">
+              <button 
+                className="px-3 py-1 sm:px-4 sm:py-2 bg-pink-500 text-white text-sm rounded hover:bg-pink-600"
+                onClick={() => setSelectedDay(null)}
+              >
+                Закрыть
+              </button>
+            </div>
           </div>
         </div>
       )}
-    </>
+
+      {/* Модальное окно для события */}
+      {selectedEvent && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-hidden">
+            <div className="p-3 sm:p-4 border-b">
+              <h3 className="text-lg sm:text-xl font-bold">{selectedEvent.name}</h3>
+            </div>
+            
+            <div className="p-3 sm:p-4 overflow-y-auto max-h-[60vh]">
+              {selectedEvent.posterUrl && (
+                <img 
+                  src={selectedEvent.posterUrl} 
+                  alt={selectedEvent.name} 
+                  className="w-full h-40 sm:h-48 object-cover rounded mb-3 sm:mb-4"
+                />
+              )}
+              
+              <div className="space-y-2 sm:space-y-3 text-sm sm:text-base">
+                <div>
+                  <strong>Дата:</strong> {formatDate(new Date(selectedEvent.dateTime))}
+                </div>
+                <div>
+                  <strong>Время:</strong> {selectedEvent.time}
+                </div>
+                <div>
+                  <strong>Место:</strong> {selectedEvent.location}
+                </div>
+                {selectedEvent.quizName && (
+                  <div>
+                    <strong>Квиз:</strong> {selectedEvent.quizName}
+                  </div>
+                )}
+                {selectedEvent.description && (
+                  <div>
+                    <strong>Описание:</strong> {selectedEvent.description}
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="p-3 sm:p-4 flex flex-col sm:flex-row justify-between gap-2 border-t">
+              <button 
+                className="px-3 py-1 sm:px-4 sm:py-2 bg-gray-300 text-sm rounded hover:bg-gray-400"
+                onClick={() => {
+                  setSelectedEvent(null);
+                  setSelectedDay({
+                    date: new Date(selectedEvent.dateTime),
+                    events: [selectedEvent]
+                  });
+                }}
+              >
+                Назад к событиям
+              </button>
+              <button 
+                className="px-3 py-1 sm:px-4 sm:py-2 bg-pink-500 text-white text-sm rounded hover:bg-pink-600"
+                onClick={() => {
+                  // Переход на страницу события
+                  window.location.href = selectedEvent.link;
+                }}
+              >
+                Перейти к квизу
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
-});
+};
 
 export default Calendar;

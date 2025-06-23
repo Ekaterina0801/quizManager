@@ -61,19 +61,6 @@ const EventsPage = observer(() => {
                 <option value="name,desc">Я→A</option>
               </select>
             </div>
-            <div className="flex items-center bg-gray-100 rounded-md px-3 py-2">
-              <select
-                value={size}
-                onChange={e => eventStore.setSize(Number(e.target.value))}
-                className="bg-transparent focus:outline-none"
-              >
-                {[5, 10, 20, 50].map(n => (
-                  <option key={n} value={n}>
-                    {n} на стр.
-                  </option>
-                ))}
-              </select>
-            </div>
           </div>
         </div>
 
