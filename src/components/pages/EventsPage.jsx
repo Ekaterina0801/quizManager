@@ -9,10 +9,9 @@ import EventModal from "../EventModal";
 import userStore from "../../store/userStore";
 import { useNavigate} from "react-router-dom";
 import { FaSearch, FaSort, FaChevronLeft, FaChevronRight } from "react-icons/fa";
-
 const EventsPage = observer(() => {
   const navigate = useNavigate();
-  const [viewMode, setViewMode] = useState("list");
+  const [viewMode, setViewMode] = useState("calendar");
   const [isOpen, setIsOpen] = useState(false);
 
   const { selected: team } = teamStore;
@@ -35,7 +34,6 @@ const EventsPage = observer(() => {
       />
 
       <div className="px-6 py-4 space-y-6">
-        {/* Фильтры */}
         <div className="bg-white rounded-2xl shadow p-4 flex flex-col md:flex-row md:items-center md:space-x-4 space-y-3 md:space-y-0">
           <div className="flex items-center bg-gray-100 rounded-md px-3 py-2 flex-1">
             <FaSearch className="text-gray-500 mr-2" />
@@ -64,7 +62,6 @@ const EventsPage = observer(() => {
           </div>
         </div>
 
-        {/* Контент */}
         <div className="bg-white rounded-2xl shadow overflow-hidden">
           {isLoading ? (
             <div className="py-20 text-center text-gray-500">Загрузка…</div>
@@ -75,7 +72,6 @@ const EventsPage = observer(() => {
           )}
         </div>
 
-        {/* Пагинация */}
         {eventsPage && eventsPage.totalPages > 1 && (
           <div className="flex justify-center items-center space-x-2 py-4">
             <button
@@ -108,7 +104,6 @@ const EventsPage = observer(() => {
         )}
       </div>
 
-      {/* Кнопка «+» */}
       {userStore.isAdmin && (
         <button
           onClick={() => setIsOpen(true)}
@@ -118,13 +113,12 @@ const EventsPage = observer(() => {
         </button>
       )}
 
-      {/* Модалка */}
       <EventModal
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}
         onSubmit={async data => {
           await eventStore.create(data);
-          setIsOpen(false);
+          await eventStore.fetchForTeam();
         }}
         title="Новое событие"
       />

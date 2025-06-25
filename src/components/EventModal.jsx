@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react'
-
 export default function EventModal({
   isOpen,
   onClose,
@@ -19,46 +18,55 @@ export default function EventModal({
     posterFile: null,
     posterUrl: '',
     price: ''
-  }
+  };
 
-  const [formData, setFormData] = useState(initialState)
+  const [formData, setFormData] = useState(initialState);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    document.body.style.overflow = isOpen ? 'hidden' : 'auto'
+    document.body.style.overflow = isOpen ? 'hidden' : 'auto';
     if (!isOpen) {
-      setFormData(initialState)
+      setFormData(initialState);
+      setIsSubmitting(false);
     }
     return () => {
-      document.body.style.overflow = 'auto'
-    }
-  }, [isOpen])
+      document.body.style.overflow = 'auto';
+    };
+  }, [isOpen]);
 
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   const handleChange = e => {
-    const { name, value, type, checked } = e.target
+    const { name, value, type, checked } = e.target;
     setFormData(fd => ({
       ...fd,
       [name]: type === 'checkbox' ? checked : value
-    }))
-  }
+    }));
+  };
 
   const handleFile = e => {
-    const file = e.target.files[0]
-    if (!file) return
+    const file = e.target.files[0];
+    if (!file) return;
     setFormData(fd => ({
       ...fd,
       posterFile: file,
       posterUrl: URL.createObjectURL(file)
-    }))
-  }
+    }));
+  };
 
   const handleSubmit = async e => {
-    e.preventDefault()
-    await onSubmit(formData)
-    setFormData(initialState)
-    onClose()
-  }
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      await onSubmit(formData);
+      setFormData(initialState);
+      onClose();
+    } catch (error) {
+      console.error('Ошибка при создании события:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-purple-900 via-purple-700 to-pink-600 bg-opacity-80 z-50 p-4">
@@ -208,19 +216,34 @@ export default function EventModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-6 py-2 bg-gray-400 text-gray-800 rounded-lg hover:opacity-90 transition"
+              disabled={isSubmitting}
+              className={`px-6 py-2 bg-gray-400 text-gray-800 rounded-lg hover:opacity-90 transition ${
+                isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
             >
               Отменить
             </button>
             <button
               type="submit"
-              className="px-6 py-2 bg-yellow-400 text-purple-900 font-bold rounded-lg hover:opacity-90 transition"
+              disabled={isSubmitting}
+              className={`px-6 py-2 bg-yellow-400 text-purple-900 font-bold rounded-lg hover:opacity-90 transition relative ${
+                isSubmitting ? 'opacity-70 cursor-wait' : ''
+              }`}
             >
-              Сохранить
+              {isSubmitting ? (
+                <>
+                  <span className="invisible">Сохранить</span>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-5 h-5 border-2 border-purple-900 border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                </>
+              ) : (
+                'Сохранить'
+              )}
             </button>
           </div>
         </form>
       </div>
     </div>
-  )
+  );
 }
