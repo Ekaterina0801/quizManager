@@ -325,9 +325,10 @@ const Calendar = ({ events }) => {
                         {event.name}
                       </h4>
                       <div className="text-xs sm:text-sm text-gray-600 mt-1">
-                        <div className="text-[8px] sm:text-[10px] text-white">
+                        <div className="font-bold text-sm sm:text-base">
                           {(() => {
-                            const date = new Date(item.events[0].dateTime);
+                            console.log(event.dateTime)
+                            const date = new Date(event.dateTime);
                             const hours = date
                               .getHours()
                               .toString()
